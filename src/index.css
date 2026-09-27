@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-serif: 'Newsreader', Georgia, serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: #FBF9F5;
+    color: #1C1917;
+  }
+}
+
+/* Notebook paper lined pattern for Student Note mode */
+.notebook-ruled-paper {
+  background-color: #FAF8F2;
+  background-image: 
+    linear-gradient(to right, transparent 54px, rgba(239, 68, 68, 0.25) 54px, rgba(239, 68, 68, 0.25) 56px, transparent 56px),
+    linear-gradient(to bottom, transparent 29px, rgba(30, 64, 175, 0.12) 30px);
+  background-size: 100% 100%, 100% 30px;
+  line-height: 30px;
+}
+
+/* Notebook subtle horizontal grid */
+.notebook-subtle-lines {
+  background-image: linear-gradient(to bottom, transparent 31px, rgba(140, 120, 100, 0.12) 32px);
+  background-size: 100% 32px;
+}
+
+/* Custom scrollbar for distraction-free reading */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(140, 120, 100, 0.2);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(140, 120, 100, 0.4);
+}

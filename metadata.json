@@ -1,0 +1,6 @@
+{
+  "name": "TeachIt",
+  "description": "Digital teaching companion for teachers to deliver structured classroom lessons without losing their place, featuring teacher guidance, notebook student notes, and instant resources.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

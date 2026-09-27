@@ -1,0 +1,174 @@
+import React from 'react';
+import { useLesson } from '../context/LessonContext';
+import { X, CheckCircle2, Circle, Clock, ArrowRight, BookOpen, HelpCircle, FileText } from 'lucide-react';
+
+interface SectionNavModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelectSection: (sectionId: string) => void;
+  onSelectAnchor: (anchorId: string) => void;
+}
+
+export const SectionNavModal: React.FC<SectionNavModalProps> = ({
+  isOpen,
+  onClose,
+  onSelectSection,
+  onSelectAnchor,
+}) => {
+  const { activeLesson, currentSectionId, setViewMode } = useLesson();
+
+  if (!isOpen || !activeLesson) return null;
+
+  const sections = activeLesson.sections;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-3 sm:p-6 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
+      <div 
+        className="w-full max-w-lg bg-[#FAF8F3] border border-[#DDD3BF] rounded-lg shadow-xl overflow-hidden flex flex-col max-h-[88vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#E8DFC9] bg-[#F2ECDD]">
+          <div>
+            <div className="text-xs uppercase tracking-wider text-[#786F62] font-mono">
+              Lesson Procedure Index
+            </div>
+            <div className="text-base font-serif font-medium text-[#1C1917] truncate max-w-sm">
+              {activeLesson.topic}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 text-[#574D42] hover:text-[#1C1917] hover:bg-[#E2D8C3] rounded transition-colors"
+            aria-label="Close procedure index"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Quick jump anchors */}
+        <div className="px-5 py-2.5 bg-[#FAF7F0] border-b border-[#EAE1CD] flex items-center gap-2 overflow-x-auto text-xs text-[#574D42]">
+          <span className="font-semibold text-[#786F62] shrink-0">Jump:</span>
+          <button
+            onClick={() => {
+              onSelectAnchor('lesson-overview');
+              onClose();
+            }}
+            className="hover:text-[#1C1917] hover:underline px-1.5 py-0.5 whitespace-nowrap"
+          >
+            Overview
+          </button>
+          <span>·</span>
+          <button
+            onClick={() => {
+              onSelectAnchor('lesson-objectives');
+              onClose();
+            }}
+            className="hover:text-[#1C1917] hover:underline px-1.5 py-0.5 whitespace-nowrap"
+          >
+            Objectives
+          </button>
+          <span>·</span>
+          <button
+            onClick={() => {
+              onSelectAnchor('lesson-materials');
+              onClose();
+            }}
+            className="hover:text-[#1C1917] hover:underline px-1.5 py-0.5 whitespace-nowrap"
+          >
+            Materials
+          </button>
+          <span>·</span>
+          <button
+            onClick={() => {
+              setViewMode('notebook');
+              onClose();
+            }}
+            className="text-[#9A3412] hover:underline px-1.5 py-0.5 font-medium whitespace-nowrap"
+          >
+            Student Notes
+          </button>
+        </div>
+
+        {/* Section List */}
+        <div className="overflow-y-auto p-3 space-y-1 divide-y divide-[#EFE8D8]">
+          {sections.map((sec, idx) => {
+            const isCurrent = sec.id === currentSectionId;
+            const isCompleted = activeLesson.completedSectionIds.includes(sec.id);
+
+            return (
+              <div
+                key={sec.id}
+                onClick={() => {
+                  onSelectSection(sec.id);
+                  onClose();
+                }}
+                className={`group flex items-center justify-between p-3 rounded cursor-pointer transition-colors ${
+                  isCurrent
+                    ? 'bg-[#EFE8D8] text-[#1C1917] font-medium border-l-4 border-[#9A3412]'
+                    : 'hover:bg-[#F4EEE0] text-[#443E37]'
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0 pr-2">
+                  <div className="shrink-0 flex items-center justify-center">
+                    {isCompleted ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                    ) : isCurrent ? (
+                      <div className="w-3.5 h-3.5 rounded-full border-2 border-[#9A3412] flex items-center justify-center">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#9A3412]" />
+                      </div>
+                    ) : (
+                      <Circle className="w-3.5 h-3.5 text-[#A89E8F]" />
+                    )}
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-xs text-[#786F62]">{sec.sectionNumber}.</span>
+                      <span className="text-sm font-medium text-[#1C1917] truncate">{sec.title}</span>
+                    </div>
+                    {sec.groupTitle && (
+                      <div className="text-[11px] text-[#786F62] uppercase tracking-wider">
+                        {sec.groupTitle}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  {sec.suggestedDurationMinutes && (
+                    <span className="text-xs font-mono text-[#786F62] flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-[#A89E8F]" />
+                      {sec.suggestedDurationMinutes}m
+                    </span>
+                  )}
+                  {isCurrent && (
+                    <span className="text-[11px] font-mono font-bold text-[#9A3412] bg-[#E5DAC4] px-1.5 py-0.5 rounded">
+                      HERE
+                    </span>
+                  )}
+                  <ArrowRight className="w-3.5 h-3.5 text-[#A89E8F] group-hover:text-[#1C1917] group-hover:translate-x-0.5 transition-all" />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Footer shortcuts */}
+        <div className="p-3 bg-[#F2ECDD] border-t border-[#E8DFC9] flex items-center justify-between text-xs text-[#574D42]">
+          <button
+            onClick={() => {
+              setViewMode('notebook');
+              onClose();
+            }}
+            className="flex items-center gap-1.5 font-medium hover:text-[#1C1917]"
+          >
+            <BookOpen className="w-3.5 h-3.5 text-[#9A3412]" />
+            <span>Open Student Notebook</span>
+          </button>
+          <span className="text-[#8C8375]">Click any section to jump immediately</span>
+        </div>
+      </div>
+    </div>
+  );
+};
