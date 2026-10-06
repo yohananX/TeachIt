@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLesson } from '../context/LessonContext';
-import { X, CheckCircle2, Circle, Clock, ArrowRight, BookOpen, HelpCircle, FileText } from 'lucide-react';
+import { X, CheckCircle2, Circle, Clock, ArrowRight } from 'lucide-react';
 
 interface SectionNavModalProps {
   isOpen: boolean;
@@ -15,7 +15,7 @@ export const SectionNavModal: React.FC<SectionNavModalProps> = ({
   onSelectSection,
   onSelectAnchor,
 }) => {
-  const { activeLesson, currentSectionId, setViewMode } = useLesson();
+  const { activeLesson, currentSectionId } = useLesson();
 
   if (!isOpen || !activeLesson) return null;
 
@@ -84,12 +84,12 @@ export const SectionNavModal: React.FC<SectionNavModalProps> = ({
           <span>·</span>
           <button
             onClick={() => {
-              setViewMode('notebook');
+              onSelectAnchor('student-note');
               onClose();
             }}
             className="text-[#9A3412] hover:underline px-1.5 py-0.5 font-medium whitespace-nowrap"
           >
-            Student Notes
+            Student Note
           </button>
         </div>
 
@@ -157,19 +157,9 @@ export const SectionNavModal: React.FC<SectionNavModalProps> = ({
           })}
         </div>
 
-        {/* Footer shortcuts */}
-        <div className="p-3 bg-[#F2ECDD] border-t border-[#E8DFC9] flex items-center justify-between text-xs text-[#574D42]">
-          <button
-            onClick={() => {
-              setViewMode('notebook');
-              onClose();
-            }}
-            className="flex items-center gap-1.5 font-medium hover:text-[#1C1917]"
-          >
-            <BookOpen className="w-3.5 h-3.5 text-[#9A3412]" />
-            <span>Open Student Notebook</span>
-          </button>
-          <span className="text-[#8C8375] hidden sm:inline">Click any section to jump immediately</span>
+        {/* Footer hint */}
+        <div className="p-3 bg-[#F2ECDD] border-t border-[#E8DFC9] text-xs text-[#574D42]">
+          <span className="text-[#8C8375]">Click any section to jump immediately</span>
         </div>
       </div>
     </div>

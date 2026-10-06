@@ -24,6 +24,13 @@ import {
   splitLegacyLesson,
 } from '../data/initialCurriculum';
 
+/**
+ * UI navigation state only — never persisted, never domain data.
+ * Four destinations: Home/Today, Plan, Lesson (teach mode) and the secondary
+ * lesson library.
+ */
+export type ViewMode = 'today' | 'plan' | 'lesson' | 'library';
+
 interface LessonContextType {
   // Domain collections (persistent)
   classes: ClassItem[];
@@ -40,11 +47,11 @@ interface LessonContextType {
   preferences: TeacherPreferences;
   selectedClassId: string;
   selectedSubjectId: string;
-  viewMode: 'library' | 'weekly' | 'lesson' | 'notebook' | 'editor';
+  viewMode: ViewMode;
   setSelectedClassId: (id: string) => void;
   setSelectedSubjectId: (id: string) => void;
-  setViewMode: (mode: 'library' | 'weekly' | 'lesson' | 'notebook' | 'editor') => void;
-  selectLesson: (lessonId: string, targetView?: 'lesson' | 'notebook') => void;
+  setViewMode: (mode: ViewMode) => void;
+  selectLesson: (lessonId: string) => void;
   setCurrentSection: (sectionId: string) => void;
   toggleSectionCompleted: (sectionId: string) => void;
   updateLessonStatus: (lessonId: string, status: LessonStatus) => void;
@@ -189,7 +196,7 @@ export const LessonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   });
 
-  const [viewMode, setViewMode] = useState<'library' | 'weekly' | 'lesson' | 'notebook' | 'editor'>('lesson');
+  const [viewMode, setViewMode] = useState<ViewMode>('today');
 
   // Sync state to local storage
   useEffect(() => {
@@ -270,14 +277,14 @@ export const LessonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
   };
 
-  const selectLesson = (lessonId: string, targetView: 'lesson' | 'notebook' = 'lesson') => {
+  const selectLesson = (lessonId: string) => {
     setActiveLessonId(lessonId);
     const target = lessons.find((l) => l.id === lessonId);
     if (target) {
       setSelectedClassId(target.classId);
       setSelectedSubjectId(target.subjectId);
     }
-    setViewMode(targetView);
+    setViewMode('lesson');
   };
 
   const setCurrentSection = (sectionId: string) => {
@@ -383,7 +390,7 @@ export const LessonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setSelectedClassId('class-jss3');
     setSelectedSubjectId('sub-jss3-dt');
     setPreferences(DEFAULT_PREFERENCES);
-    setViewMode('lesson');
+    setViewMode('today');
   };
 
   return (

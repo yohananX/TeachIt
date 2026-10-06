@@ -3,9 +3,9 @@ import { LessonProvider, useLesson } from './context/LessonContext';
 import { Header } from './components/Header';
 import { PositionRibbon } from './components/PositionRibbon';
 import { LessonProcedureView } from './components/LessonProcedureView';
-import { StudentNotebookView } from './components/StudentNotebookView';
 import { LessonLibraryView } from './components/LessonLibraryView';
-import { WeeklyPlannerView } from './components/WeeklyPlannerView';
+import { PlanView } from './components/PlanView';
+import { TodayView } from './components/TodayView';
 import { SectionNavModal } from './components/SectionNavModal';
 import { ResourceViewerModal } from './components/ResourceViewerModal';
 import { PreferencesModal } from './components/PreferencesModal';
@@ -55,10 +55,9 @@ const MainContent: React.FC = () => {
     }
   }, [currentSectionId, scrollToElement]);
 
-  // Returning to the teaching procedure (from Student Notes, or when opening a
-  // lesson) always restores the saved teaching position. Manual scrolling is
-  // never interrupted while the teacher stays in the lesson view, and an
-  // explicit "jump to X" always wins over the automatic restore.
+  // Opening a lesson (from Today, Plan or the library) restores the saved
+  // teaching position. Manual scrolling is never interrupted while the teacher
+  // stays in the lesson, and an explicit "jump to X" always wins.
   const previousModeRef = useRef(viewMode);
   const previousLessonRef = useRef(activeLessonId);
   const pendingNavScrollRef = useRef<string | null>(null);
@@ -74,9 +73,9 @@ const MainContent: React.FC = () => {
     }
 
     if (viewMode !== 'lesson' || !currentSectionId) return;
-    const enteringFromNotebook = previousMode === 'notebook';
+    const enteredLessonView = previousMode !== 'lesson';
     const lessonChanged = previousLesson !== activeLessonId;
-    if (!enteringFromNotebook && !lessonChanged) return;
+    if (!enteredLessonView && !lessonChanged) return;
 
     const timer = setTimeout(() => scrollToElement(currentSectionId, 'auto'), 80);
     return () => clearTimeout(timer);
@@ -106,7 +105,7 @@ const MainContent: React.FC = () => {
     }, 80);
   };
 
-  // Keyboard navigation shortcuts: Left/Right arrows for lesson steps
+  // Escape closes any open overlay
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
@@ -130,13 +129,10 @@ const MainContent: React.FC = () => {
   return (
     <div className={`min-h-screen ${themeStyle.bg} text-[#1C1917] transition-colors duration-200 flex flex-col`}>
       {/* 3-Zone Top Bar Contract */}
-      <Header
-        onOpenSettings={() => setIsPreferencesOpen(true)}
-        onOpenNewLesson={() => setIsEditorOpen(true)}
-      />
+      <Header onOpenSettings={() => setIsPreferencesOpen(true)} />
 
       {/* Position Ribbon: The persistent "Where am I right now?" companion */}
-      {(viewMode === 'lesson' || viewMode === 'notebook') && activeLesson && (
+      {viewMode === 'lesson' && activeLesson && (
         <PositionRibbon
           onOpenSectionNav={() => setIsSectionNavOpen(true)}
           onScrollToCurrentSection={scrollToCurrentSection}
@@ -145,22 +141,21 @@ const MainContent: React.FC = () => {
 
       {/* Main View Router */}
       <main className="flex-1 w-full">
+        {viewMode === 'today' && <TodayView />}
+
+        {viewMode === 'plan' && <PlanView />}
+
         {viewMode === 'library' && (
           <LessonLibraryView onOpenNewLesson={() => setIsEditorOpen(true)} />
         )}
-
-        {viewMode === 'weekly' && <WeeklyPlannerView />}
 
         {viewMode === 'lesson' && (
           <LessonProcedureView
             onOpenResource={(res) => setActiveResource(res)}
             onOpenSectionNav={() => setIsSectionNavOpen(true)}
             registerScrollTarget={registerScrollTarget}
+            onJumpToAnchor={handleSelectAnchorFromNav}
           />
-        )}
-
-        {viewMode === 'notebook' && (
-          <StudentNotebookView onBackToLesson={() => setViewMode('lesson')} />
         )}
       </main>
 

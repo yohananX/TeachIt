@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { useLesson } from '../context/LessonContext';
 import { getFontSizeClass } from '../utils/theme';
-import { Printer, Copy, Check, ArrowLeft, Maximize2, Minimize2, BookOpen } from 'lucide-react';
+import { Printer, Copy, Check, Maximize2, Minimize2 } from 'lucide-react';
 
-interface StudentNotebookViewProps {
-  onBackToLesson: () => void;
-}
-
-export const StudentNotebookView: React.FC<StudentNotebookViewProps> = ({ onBackToLesson }) => {
+/**
+ * The student lesson note as a page block. Rendered inside the lesson document
+ * (it is part of the lesson, not a separate destination), with copy / print /
+ * present-to-class actions.
+ */
+export const StudentNoteBlock: React.FC = () => {
   const { activeLesson, preferences } = useLesson();
   const [copied, setCopied] = useState(false);
   const [isPresenterMode, setIsPresenterMode] = useState(false);
@@ -46,18 +47,7 @@ export const StudentNotebookView: React.FC<StudentNotebookViewProps> = ({ onBack
   return (
     <div className={`w-full max-w-4xl mx-auto px-4 sm:px-6 py-6 pb-28 ${isPresenterMode ? 'fixed inset-0 z-50 bg-[#FAF8F2] overflow-y-auto p-8 max-w-none' : ''}`}>
       {/* Control bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 gap-y-3 mb-6 pb-4 border-b border-[#E0D7C4]">
-        <button
-          onClick={onBackToLesson}
-          className="inline-flex items-center gap-2 min-h-[40px] px-1 -mx-1 text-xs sm:text-sm font-medium text-[#78350F] hover:text-[#522409] hover:underline cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>
-            <span className="sm:hidden">Teaching Procedure</span>
-            <span className="hidden sm:inline">Return to Teaching Procedure</span>
-          </span>
-        </button>
-
+      <div className="flex flex-wrap items-center justify-end gap-2 gap-y-3 mb-6 pb-4 border-b border-[#E0D7C4]">
         <div className="flex items-center gap-2">
           <button
             onClick={handleCopyNotes}

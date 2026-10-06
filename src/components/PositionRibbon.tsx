@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLesson } from '../context/LessonContext';
-import { ChevronLeft, ChevronRight, Menu, BookOpen, Compass } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Menu } from 'lucide-react';
 
 interface PositionRibbonProps {
   onOpenSectionNav: () => void;
@@ -11,14 +11,7 @@ export const PositionRibbon: React.FC<PositionRibbonProps> = ({
   onOpenSectionNav,
   onScrollToCurrentSection,
 }) => {
-  const {
-    activeLesson,
-    currentSectionId,
-    setCurrentSection,
-    viewMode,
-    setViewMode,
-    preferences,
-  } = useLesson();
+  const { activeLesson, currentSectionId, setCurrentSection, preferences } = useLesson();
 
   if (!activeLesson) return null;
 
@@ -64,10 +57,7 @@ export const PositionRibbon: React.FC<PositionRibbonProps> = ({
 
           {/* Current section: the "Where am I?" answer */}
           <button
-            onClick={() => {
-              if (viewMode !== 'lesson') setViewMode('lesson');
-              onScrollToCurrentSection();
-            }}
+            onClick={onScrollToCurrentSection}
             className="flex items-center gap-1.5 min-w-0 flex-1 text-left group py-0.5"
             title="Jump back to your active section"
           >
@@ -89,33 +79,8 @@ export const PositionRibbon: React.FC<PositionRibbonProps> = ({
           </button>
         </div>
 
-        {/* Right: mode switch (primary) + step controls (secondary) */}
+        {/* Right: section step controls */}
         <div className="flex items-center gap-1 shrink-0">
-          {viewMode === 'lesson' ? (
-            <button
-              onClick={() => setViewMode('notebook')}
-              className="flex items-center justify-center gap-1 min-h-[30px] px-2 sm:px-2.5 py-1.5 text-xs font-medium text-[#574D42] hover:text-[#1C1917] hover:bg-[#E8DFC9] rounded transition-colors whitespace-nowrap"
-              title="View student notebook notes"
-              aria-label="Student notes"
-            >
-              <BookOpen className="w-4 h-4 text-[#9A3412]" />
-              <span className="hidden md:inline">Student Note</span>
-            </button>
-          ) : (
-            <button
-              onClick={() => {
-                setViewMode('lesson');
-                setTimeout(onScrollToCurrentSection, 50);
-              }}
-              className="flex items-center justify-center gap-1 min-h-[30px] px-2 sm:px-2.5 py-1.5 text-xs font-medium text-[#9A3412] bg-[#E8DFC9] rounded transition-colors whitespace-nowrap"
-              title="Return to teaching procedure"
-              aria-label="Return to teaching procedure"
-            >
-              <Compass className="w-4 h-4" />
-              <span className="hidden sm:inline">Teaching Procedure</span>
-            </button>
-          )}
-
           <div className="flex items-center gap-0.5 border-l border-[#E2D8C3] pl-1.5 sm:pl-2">
             <button
               onClick={handlePrev}

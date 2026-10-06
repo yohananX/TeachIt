@@ -1,7 +1,8 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { useLesson } from '../context/LessonContext';
-import { LessonSection, LessonResource } from '../types/lesson';
+import { LessonResource } from '../types/lesson';
 import { getFontSizeClass } from '../utils/theme';
+import { StudentNoteBlock } from './StudentNoteBlock';
 import {
   Clock,
   CheckCircle2,
@@ -12,10 +13,8 @@ import {
   MessageSquareQuote,
   Target,
   Package,
-  HelpCircle,
-  Sparkles,
-  ArrowRight,
   Eye,
+  ArrowRight,
   FileCheck2,
 } from 'lucide-react';
 
@@ -23,12 +22,15 @@ interface LessonProcedureViewProps {
   onOpenResource: (resource: LessonResource) => void;
   onOpenSectionNav: () => void;
   registerScrollTarget: (id: string, el: HTMLElement | null) => void;
+  /** Jump to an anchor inside this document (e.g. the student note block). */
+  onJumpToAnchor: (anchorId: string) => void;
 }
 
 export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
   onOpenResource,
   onOpenSectionNav,
   registerScrollTarget,
+  onJumpToAnchor,
 }) => {
   const {
     activeLesson,
@@ -36,7 +38,6 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
     setCurrentSection,
     toggleSectionCompleted,
     preferences,
-    setViewMode,
   } = useLesson();
 
   const fontClasses = getFontSizeClass(preferences.fontSize);
@@ -315,10 +316,10 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
                       Student Note Material
                     </span>
                     <button
-                      onClick={() => setViewMode('notebook')}
+                      onClick={() => onJumpToAnchor('student-note')}
                       className="text-[11px] text-[#1E3A8A] hover:underline font-medium min-h-[32px] px-1 -mx-1"
                     >
-                      Open in Student Notebook →
+                      Jump to student note →
                     </button>
                   </div>
                   <p className="text-xs sm:text-sm text-[#1C1917] leading-relaxed font-serif">
@@ -445,6 +446,28 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
             <span className="font-semibold">Grading breakdown:</span> {activeLesson.assignment.gradingCriteria}
           </div>
         )}
+      </section>
+
+      {/* ─────────────────────────────────────────────────────────────
+          5. STUDENT NOTE — part of this lesson, not a separate screen
+      ───────────────────────────────────────────────────────────── */}
+      <section className="mt-16 pt-8 border-t border-[#E2D8C3]">
+        <div className="flex flex-wrap items-end justify-between gap-2 mb-4">
+          <div>
+            <span className="text-xs font-mono uppercase tracking-widest text-[#786F62]">
+              For exercise books
+            </span>
+            <h2 className="text-xl font-serif font-medium text-[#1C1917]">Student Note</h2>
+          </div>
+          <span className="text-xs font-mono text-[#786F62]">Copy · Print · Present</span>
+        </div>
+
+        <div
+          id="student-note"
+          ref={(el) => registerScrollTarget('student-note', el)}
+        >
+          <StudentNoteBlock />
+        </div>
       </section>
     </div>
   );

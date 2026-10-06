@@ -1,16 +1,6 @@
 import React, { useState } from 'react';
 import { useLesson } from '../context/LessonContext';
-import {
-  Clock,
-  BookOpen,
-  ArrowRight,
-  Plus,
-  Play,
-  RotateCcw,
-  Sparkles,
-  Layers,
-  Search,
-} from 'lucide-react';
+import { Plus, Play, Search } from 'lucide-react';
 
 interface LessonLibraryViewProps {
   onOpenNewLesson: () => void;
@@ -30,10 +20,7 @@ export const LessonLibraryView: React.FC<LessonLibraryViewProps> = ({ onOpenNewL
 
   const [searchQuery, setSearchQuery] = useState('');
 
-  const currentClass = classes.find((c) => c.id === selectedClassId) || classes[0];
   const classSubjects = subjects.filter((s) => s.classId === selectedClassId);
-  const currentSubject =
-    classSubjects.find((s) => s.id === selectedSubjectId) || classSubjects[0];
 
   const filteredLessons = lessons.filter((l) => {
     const matchesClass = l.classId === selectedClassId;
@@ -233,17 +220,7 @@ export const LessonLibraryView: React.FC<LessonLibraryViewProps> = ({ onOpenNewL
                   {/* Actions */}
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => selectLesson(lesson.id, 'notebook')}
-                      className="px-3 py-1.5 text-xs font-medium text-[#574D42] hover:text-[#1C1917] hover:bg-[#EAE0CB] rounded transition-colors"
-                    >
-                      <span className="flex items-center gap-1">
-                        <BookOpen className="w-3.5 h-3.5 text-[#1E3A8A]" />
-                        <span>Student Note</span>
-                      </span>
-                    </button>
-
-                    <button
-                      onClick={() => selectLesson(lesson.id, 'lesson')}
+                      onClick={() => selectLesson(lesson.id)}
                       className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-[#9A3412] hover:bg-[#852C0F] text-white text-xs font-semibold rounded transition-colors"
                     >
                       <Play className="w-3.5 h-3.5 fill-current" />
