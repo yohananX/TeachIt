@@ -1,4 +1,13 @@
-import { ClassItem, SubjectItem, Lesson } from '../types/lesson';
+import {
+  AcademicSession,
+  Lesson,
+  LessonStatus,
+  SubjectItem,
+  ClassItem,
+  TeachingProgress,
+  Topic,
+  Week,
+} from '../types/lesson';
 
 export const INITIAL_CLASSES: ClassItem[] = [
   { id: 'class-jss3', name: 'JSS 3', arm: 'Gold', level: 'Junior Secondary 3', subjectCount: 3 },
@@ -18,7 +27,114 @@ export const INITIAL_SUBJECTS: SubjectItem[] = [
   { id: 'sub-sss1-cs', classId: 'class-sss1', name: 'Computer Science', code: 'CS-401', department: 'Computer Studies' },
 ];
 
-export const INITIAL_LESSONS: Lesson[] = [
+export const DEFAULT_TERM_LABEL = 'First Term';
+export const DEFAULT_TERM_NUMBER = 1;
+export const DEFAULT_TOTAL_WEEKS = 14; // matches the lesson editor's week range
+
+/** One academic session (term) per subject. */
+export const INITIAL_SESSIONS: AcademicSession[] = INITIAL_SUBJECTS.map((subject) => ({
+  id: `sess-${subject.id}-t${DEFAULT_TERM_NUMBER}`,
+  subjectId: subject.id,
+  term: DEFAULT_TERM_NUMBER,
+  label: DEFAULT_TERM_LABEL,
+  totalWeeks: DEFAULT_TOTAL_WEEKS,
+  currentWeek: 1,
+}));
+
+/** Weeks are term structure, not content: generate them per session. */
+export const INITIAL_WEEKS: Week[] = INITIAL_SESSIONS.flatMap((session) =>
+  Array.from({ length: session.totalWeeks }, (_, index) => ({
+    id: `wk-${session.id}-${String(index + 1).padStart(2, '0')}`,
+    sessionId: session.id,
+    number: index + 1,
+  })),
+);
+
+/**
+ * Transitional shape: a lesson as authored before Phase 1, carrying its
+ * teaching progress inline. Kept only so seed data and any browser still
+ * holding pre-Phase-1 lessons can be split cleanly. Remove with the migration
+ * once all stored data is known to be current.
+ */
+export interface LegacyLesson extends Lesson {
+  term?: number;
+  status?: LessonStatus;
+  currentSectionId?: string;
+  completedSectionIds?: string[];
+  lastVisitedTimestamp?: string;
+}
+
+/** Split a (possibly legacy) lesson into lesson content + its progress record. */
+export function splitLegacyLesson(legacy: LegacyLesson): {
+  lesson: Lesson;
+  progress: TeachingProgress;
+} {
+  const { term, status, currentSectionId, completedSectionIds, lastVisitedTimestamp, ...lesson } = legacy;
+  return {
+    lesson,
+    progress: {
+      lessonId: lesson.id,
+      status: status ?? 'planned',
+      currentSectionId: currentSectionId ?? lesson.sections[0]?.id ?? null,
+      completedSectionIds: completedSectionIds ?? [],
+      lastVisitedAt: lastVisitedTimestamp,
+    },
+  };
+}
+
+/**
+ * Derive the Week → Topic layer from lessons. All lessons landing in the same
+ * week of the same subject become one topic with several lessonIds (the 1:N
+ * relation), which is how existing data and future imports are threaded into
+ * the hierarchy without hand-writing topic records.
+ */
+export function buildTopicsFromLessons(
+  lessons: Lesson[],
+  sessions: AcademicSession[],
+  weeks: Week[],
+): Topic[] {
+  const sessionBySubject = new Map(sessions.map((s) => [s.subjectId, s]));
+  const weekIdBySessionAndNumber = new Map(
+    weeks.map((w) => [`${w.sessionId}:${w.number}`, w.id]),
+  );
+
+  const topics: Topic[] = [];
+  const topicIdByWeekId = new Map<string, string>();
+
+  for (const lesson of lessons) {
+    const session = sessionBySubject.get(lesson.subjectId);
+    const weekId = session
+      ? weekIdBySessionAndNumber.get(`${session.id}:${lesson.week}`)
+      : undefined;
+    if (!weekId) continue; // lesson outside the seeded term: attach when its week exists
+
+    const existingTopicId = topicIdByWeekId.get(weekId);
+    const existingTopic = existingTopicId
+      ? topics.find((t) => t.id === existingTopicId)
+      : undefined;
+
+    if (existingTopic) {
+      if (!existingTopic.lessonIds.includes(lesson.id)) {
+        existingTopic.lessonIds.push(lesson.id);
+      }
+      continue;
+    }
+
+    const topic: Topic = {
+      id: `topic-${lesson.id}`,
+      weekId,
+      title: lesson.topic,
+      order: topics.filter((t) => t.weekId === weekId).length + 1,
+      lessonIds: [lesson.id],
+    };
+    topicIdByWeekId.set(weekId, topic.id);
+    topics.push(topic);
+  }
+
+  return topics;
+}
+
+const SEEDED_LESSONS: LegacyLesson[] = [
   {
     id: 'lesson-jss3-dt-w1',
     classId: 'class-jss3',
@@ -575,3 +691,18 @@ export const INITIAL_LESSONS: Lesson[] = [
     },
   },
 ];
+
+/** Lesson content only — progress lives in INITIAL_PROGRESS. */
+export const INITIAL_LESSONS: Lesson[] = SEEDED_LESSONS.map(
+  (legacy) => splitLegacyLesson(legacy).lesson,
+);
+
+export const INITIAL_PROGRESS: TeachingProgress[] = SEEDED_LESSONS.map(
+  (legacy) => splitLegacyLesson(legacy).progress,
+);
+
+export const INITIAL_TOPICS: Topic[] = buildTopicsFromLessons(
+  INITIAL_LESSONS,
+  INITIAL_SESSIONS,
+  INITIAL_WEEKS,
+);

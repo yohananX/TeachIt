@@ -1,21 +1,41 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
+  AcademicSession,
   ClassItem,
-  SubjectItem,
   Lesson,
   LessonStatus,
+  LessonWithProgress,
+  SubjectItem,
   TeacherPreferences,
-  FontSizeSetting,
-  ThemePaperMode,
+  TeachingProgress,
+  Topic,
+  Week,
 } from '../types/lesson';
-import { INITIAL_CLASSES, INITIAL_SUBJECTS, INITIAL_LESSONS } from '../data/initialCurriculum';
+import {
+  INITIAL_CLASSES,
+  INITIAL_LESSONS,
+  INITIAL_PROGRESS,
+  INITIAL_SESSIONS,
+  INITIAL_SUBJECTS,
+  INITIAL_TOPICS,
+  INITIAL_WEEKS,
+  LegacyLesson,
+  buildTopicsFromLessons,
+  splitLegacyLesson,
+} from '../data/initialCurriculum';
 
 interface LessonContextType {
+  // Domain collections (persistent)
   classes: ClassItem[];
   subjects: SubjectItem[];
-  lessons: Lesson[];
+  sessions: AcademicSession[];
+  weeks: Week[];
+  topics: Topic[];
+  lessons: LessonWithProgress[];
+  progressById: Record<string, TeachingProgress>;
+  // Selection / UI state
   activeLessonId: string | null;
-  activeLesson: Lesson | null;
+  activeLesson: LessonWithProgress | null;
   currentSectionId: string | null;
   preferences: TeacherPreferences;
   selectedClassId: string;
@@ -30,14 +50,17 @@ interface LessonContextType {
   updateLessonStatus: (lessonId: string, status: LessonStatus) => void;
   updatePreferences: (newPrefs: Partial<TeacherPreferences>) => void;
   saveLesson: (lesson: Lesson) => void;
-  deleteLesson: (lessonId: string) => void;
   resetAllData: () => void;
 }
 
 const STORAGE_KEYS = {
   CLASSES: 'teachit_classes_v1',
   SUBJECTS: 'teachit_subjects_v1',
+  SESSIONS: 'teachit_sessions_v1',
+  WEEKS: 'teachit_weeks_v1',
+  TOPICS: 'teachit_topics_v1',
   LESSONS: 'teachit_lessons_v1',
+  PROGRESS: 'teachit_progress_v1',
   ACTIVE_LESSON_ID: 'teachit_active_lesson_id_v1',
   SELECTED_CLASS_ID: 'teachit_selected_class_id_v1',
   SELECTED_SUBJECT_ID: 'teachit_selected_sub_id_v1',
@@ -52,22 +75,94 @@ const DEFAULT_PREFERENCES: TeacherPreferences = {
   audioFeedbackOnStep: false,
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Storage reads. Shape validation is intentionally shallow here; the real
+// repository layer (Phase 4) owns schema checks and versioned migrations.
+// A bad or missing key must never take the app down on boot.
+// ─────────────────────────────────────────────────────────────────────────────
+function loadList<T>(key: string, fallback: T[]): T[] {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as T[]) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function loadRecord<T>(key: string, fallback: Record<string, T>): Record<string, T> {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed: unknown = JSON.parse(raw);
+    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+      ? (parsed as Record<string, T>)
+      : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+const toProgressRecord = (list: TeachingProgress[]): Record<string, TeachingProgress> =>
+  Object.fromEntries(list.map((progress) => [progress.lessonId, progress]));
+
+/**
+ * Boot loader. Three storage states are handled:
+ *  - fresh boot: seed lessons + seed progress;
+ *  - pre-Phase-1 browser: lessons carry progress inline → split it out;
+ *  - post-Phase-1 browser: clean lessons + a separate progress record.
+ */
+function loadLessonsAndProgress(): {
+  lessons: Lesson[];
+  progressById: Record<string, TeachingProgress>;
+} {
+  const storedLessons = loadList<LegacyLesson>(STORAGE_KEYS.LESSONS, []);
+  const storedProgress = loadRecord<TeachingProgress>(STORAGE_KEYS.PROGRESS, {});
+  const isFreshBoot = storedLessons.length === 0;
+
+  const split = (isFreshBoot ? INITIAL_LESSONS : storedLessons).map(splitLegacyLesson);
+  const progressById = isFreshBoot
+    ? toProgressRecord(INITIAL_PROGRESS)
+    : toProgressRecord(split.map((entry) => entry.progress));
+
+  return {
+    lessons: split.map((entry) => entry.lesson),
+    progressById: { ...progressById, ...storedProgress },
+  };
+}
+
 const LessonContext = createContext<LessonContextType | undefined>(undefined);
 
 export const LessonProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [classes, setClasses] = useState<ClassItem[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.CLASSES);
-    return saved ? JSON.parse(saved) : INITIAL_CLASSES;
-  });
+  const [classes, setClasses] = useState<ClassItem[]>(() =>
+    loadList<ClassItem>(STORAGE_KEYS.CLASSES, INITIAL_CLASSES),
+  );
 
-  const [subjects, setSubjects] = useState<SubjectItem[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.SUBJECTS);
-    return saved ? JSON.parse(saved) : INITIAL_SUBJECTS;
-  });
+  const [subjects, setSubjects] = useState<SubjectItem[]>(() =>
+    loadList<SubjectItem>(STORAGE_KEYS.SUBJECTS, INITIAL_SUBJECTS),
+  );
 
-  const [lessons, setLessons] = useState<Lesson[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.LESSONS);
-    return saved ? JSON.parse(saved) : INITIAL_LESSONS;
+  const [sessions, setSessions] = useState<AcademicSession[]>(() =>
+    loadList<AcademicSession>(STORAGE_KEYS.SESSIONS, INITIAL_SESSIONS),
+  );
+
+  const [weeks, setWeeks] = useState<Week[]>(() =>
+    loadList<Week>(STORAGE_KEYS.WEEKS, INITIAL_WEEKS),
+  );
+
+  // One boot read shared by the lesson and progress state.
+  const [bootData] = useState(loadLessonsAndProgress);
+
+  const [lessons, setLessons] = useState<Lesson[]>(bootData.lessons);
+
+  const [progressById, setProgressById] = useState<Record<string, TeachingProgress>>(
+    bootData.progressById,
+  );
+
+  const [topics, setTopics] = useState<Topic[]>(() => {
+    const stored = loadList<Topic>(STORAGE_KEYS.TOPICS, []);
+    return stored.length > 0 ? stored : buildTopicsFromLessons(lessons, sessions, weeks);
   });
 
   const [activeLessonId, setActiveLessonId] = useState<string | null>(() => {
@@ -87,7 +182,11 @@ export const LessonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const [preferences, setPreferences] = useState<TeacherPreferences>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.PREFERENCES);
-    return saved ? JSON.parse(saved) : DEFAULT_PREFERENCES;
+    try {
+      return saved ? JSON.parse(saved) : DEFAULT_PREFERENCES;
+    } catch {
+      return DEFAULT_PREFERENCES;
+    }
   });
 
   const [viewMode, setViewMode] = useState<'library' | 'weekly' | 'lesson' | 'notebook' | 'editor'>('lesson');
@@ -102,8 +201,24 @@ export const LessonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [subjects]);
 
   useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
+  }, [sessions]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.WEEKS, JSON.stringify(weeks));
+  }, [weeks]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.TOPICS, JSON.stringify(topics));
+  }, [topics]);
+
+  useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.LESSONS, JSON.stringify(lessons));
   }, [lessons]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.PROGRESS, JSON.stringify(progressById));
+  }, [progressById]);
 
   useEffect(() => {
     if (activeLessonId) {
@@ -123,8 +238,37 @@ export const LessonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     localStorage.setItem(STORAGE_KEYS.PREFERENCES, JSON.stringify(preferences));
   }, [preferences]);
 
-  const activeLesson = lessons.find((l) => l.id === activeLessonId) || lessons[0] || null;
-  const currentSectionId = activeLesson?.currentSectionId || activeLesson?.sections[0]?.id || null;
+  // Read model for the UI: lesson content joined with its teaching progress.
+  const lessonsWithProgress: LessonWithProgress[] = lessons.map((lesson) => {
+    const progress = progressById[lesson.id];
+    return {
+      ...lesson,
+      status: progress?.status ?? 'planned',
+      currentSectionId: progress?.currentSectionId ?? null,
+      completedSectionIds: progress?.completedSectionIds ?? [],
+    };
+  });
+
+  const activeLesson =
+    lessonsWithProgress.find((l) => l.id === activeLessonId) ?? lessonsWithProgress[0] ?? null;
+  const currentSectionId = activeLesson?.currentSectionId ?? activeLesson?.sections[0]?.id ?? null;
+
+  const patchProgress = (lessonId: string, patch: Partial<TeachingProgress>) => {
+    setProgressById((prev) => {
+      const existing = prev[lessonId];
+      return {
+        ...prev,
+        [lessonId]: {
+          lessonId,
+          status: existing?.status ?? 'planned',
+          currentSectionId: existing?.currentSectionId ?? null,
+          completedSectionIds: existing?.completedSectionIds ?? [],
+          lastVisitedAt: existing?.lastVisitedAt,
+          ...patch,
+        },
+      };
+    });
+  };
 
   const selectLesson = (lessonId: string, targetView: 'lesson' | 'notebook' = 'lesson') => {
     setActiveLessonId(lessonId);
@@ -138,44 +282,66 @@ export const LessonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const setCurrentSection = (sectionId: string) => {
     if (!activeLessonId) return;
-    setLessons((prev) =>
-      prev.map((l) => {
-        if (l.id === activeLessonId) {
-          return {
-            ...l,
-            currentSectionId: sectionId,
-            lastVisitedTimestamp: new Date().toISOString(),
-          };
-        }
-        return l;
-      })
-    );
+    patchProgress(activeLessonId, {
+      currentSectionId: sectionId,
+      lastVisitedAt: new Date().toISOString(),
+    });
   };
 
   const toggleSectionCompleted = (sectionId: string) => {
     if (!activeLessonId) return;
-    setLessons((prev) =>
-      prev.map((l) => {
-        if (l.id === activeLessonId) {
-          const isDone = l.completedSectionIds.includes(sectionId);
-          const nextCompleted = isDone
-            ? l.completedSectionIds.filter((id) => id !== sectionId)
-            : [...l.completedSectionIds, sectionId];
-          return { ...l, completedSectionIds: nextCompleted };
-        }
-        return l;
-      })
-    );
+    const lessonId = activeLessonId;
+    setProgressById((prev) => {
+      const existing = prev[lessonId];
+      const completed = existing?.completedSectionIds ?? [];
+      const nextCompleted = completed.includes(sectionId)
+        ? completed.filter((id) => id !== sectionId)
+        : [...completed, sectionId];
+      return {
+        ...prev,
+        [lessonId]: {
+          lessonId,
+          status: existing?.status ?? 'planned',
+          currentSectionId: existing?.currentSectionId ?? null,
+          completedSectionIds: nextCompleted,
+          lastVisitedAt: existing?.lastVisitedAt,
+        },
+      };
+    });
   };
 
   const updateLessonStatus = (lessonId: string, status: LessonStatus) => {
-    setLessons((prev) =>
-      prev.map((l) => (l.id === lessonId ? { ...l, status } : l))
-    );
+    patchProgress(lessonId, { status });
   };
 
   const updatePreferences = (newPrefs: Partial<TeacherPreferences>) => {
     setPreferences((prev) => ({ ...prev, ...newPrefs }));
+  };
+
+  /**
+   * Keep the hierarchy reachable: an authored lesson must belong to a topic in
+   * its week, otherwise it would never appear in the weekly plan.
+   */
+  const ensureTopicForLesson = (existing: Topic[], lesson: Lesson): Topic[] => {
+    if (existing.some((topic) => topic.lessonIds.includes(lesson.id))) return existing;
+
+    const session = sessions.find((s) => s.subjectId === lesson.subjectId);
+    const week = session
+      ? weeks.find((w) => w.sessionId === session.id && w.number === lesson.week)
+      : undefined;
+    if (!week) return existing; // outside the seeded term: attach once the week exists
+
+    const order = existing.filter((topic) => topic.weekId === week.id).length + 1;
+    return [
+      ...existing,
+      {
+        id: `topic-${lesson.id}`,
+        weekId: week.id,
+        title: lesson.topic,
+        order,
+        lessonIds: [lesson.id],
+      },
+    ];
   };
 
   const saveLesson = (lesson: Lesson) => {
@@ -186,22 +352,33 @@ export const LessonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
       return [...prev, lesson];
     });
+    // Editing a lesson must never reset delivery progress it already has.
+    setProgressById((prev) =>
+      prev[lesson.id]
+        ? prev
+        : {
+            ...prev,
+            [lesson.id]: {
+              lessonId: lesson.id,
+              status: 'planned',
+              currentSectionId: lesson.sections[0]?.id ?? null,
+              completedSectionIds: [],
+            },
+          },
+    );
+    setTopics((prev) => ensureTopicForLesson(prev, lesson));
     setActiveLessonId(lesson.id);
     setViewMode('lesson');
-  };
-
-  const deleteLesson = (lessonId: string) => {
-    setLessons((prev) => prev.filter((l) => l.id !== lessonId));
-    if (activeLessonId === lessonId) {
-      const remaining = lessons.filter((l) => l.id !== lessonId);
-      setActiveLessonId(remaining[0]?.id || null);
-    }
   };
 
   const resetAllData = () => {
     setClasses(INITIAL_CLASSES);
     setSubjects(INITIAL_SUBJECTS);
+    setSessions(INITIAL_SESSIONS);
+    setWeeks(INITIAL_WEEKS);
+    setTopics(INITIAL_TOPICS);
     setLessons(INITIAL_LESSONS);
+    setProgressById(toProgressRecord(INITIAL_PROGRESS));
     setActiveLessonId('lesson-jss3-dt-w1');
     setSelectedClassId('class-jss3');
     setSelectedSubjectId('sub-jss3-dt');
@@ -214,7 +391,11 @@ export const LessonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       value={{
         classes,
         subjects,
-        lessons,
+        sessions,
+        weeks,
+        topics,
+        lessons: lessonsWithProgress,
+        progressById,
         activeLessonId,
         activeLesson,
         currentSectionId,
@@ -231,7 +412,6 @@ export const LessonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updateLessonStatus,
         updatePreferences,
         saveLesson,
-        deleteLesson,
         resetAllData,
       }}
     >

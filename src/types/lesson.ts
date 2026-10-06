@@ -16,6 +16,45 @@ export interface SubjectItem {
   department: string;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Curriculum hierarchy:
+//   Class → Subject → AcademicSession → Week → Topic → Lesson → LessonSection
+// TeachingProgress is kept separately from Lesson (it describes delivery, not
+// content) and is keyed by lessonId.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface AcademicSession {
+  id: string; // 'sess-sub-jss3-dt-t1'
+  subjectId: string;
+  term: number; // 1..3
+  year?: number;
+  label: string; // 'First Term'
+  totalWeeks: number;
+  currentWeek: number;
+}
+
+export interface Week {
+  id: string; // 'wk-sess-sub-jss3-dt-t1-01'
+  sessionId: string;
+  number: number; // 1..totalWeeks
+}
+
+export interface Topic {
+  id: string; // 'topic-lesson-jss3-dt-w1'
+  weekId: string;
+  title: string; // planning label shown in the weekly plan
+  order: number; // position within the week
+  lessonIds: string[]; // a topic may span several lessons; empty = not prepared yet
+}
+
+export interface TeachingProgress {
+  lessonId: string;
+  status: LessonStatus;
+  currentSectionId: string | null;
+  completedSectionIds: string[];
+  lastVisitedAt?: string;
+}
+
 export interface LessonResource {
   id: string;
   type: 'image' | 'video' | 'link';
@@ -82,10 +121,8 @@ export interface Lesson {
   subjectId: string;
   subjectName: string;
   week: number;
-  term: number;
   topic: string;
   durationMinutes: string; // e.g. "40–45 minutes"
-  status: LessonStatus;
   isRevision?: boolean;
   revisionReference?: string;
   learningObjectives: string[];
@@ -94,10 +131,19 @@ export interface Lesson {
   studentNote: StudentNote;
   evaluationQuestions: EvaluationQuestion[];
   assignment: LessonAssignment;
-  currentSectionId: string; // The saved "Where am I right now" marker!
-  completedSectionIds: string[];
-  lastVisitedTimestamp?: string;
 }
+
+/**
+ * Transitional read model handed to the UI: a Lesson joined with its
+ * TeachingProgress. Components still render progress fields as if they lived on
+ * the lesson; they are derived here so progress keeps a single source of truth.
+ * Remove once the plan/teach views read TeachingProgress directly.
+ */
+export type LessonWithProgress = Lesson & {
+  status: LessonStatus;
+  currentSectionId: string | null;
+  completedSectionIds: string[];
+};
 
 export type FontSizeSetting = 'sm' | 'md' | 'lg' | 'xl';
 export type ThemePaperMode = 'warm-paper' | 'clean-white' | 'slate-focus';
