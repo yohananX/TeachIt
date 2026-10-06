@@ -18,6 +18,7 @@ const MainContent: React.FC = () => {
     viewMode,
     setViewMode,
     activeLesson,
+    activeLessonId,
     currentSectionId,
     setCurrentSection,
     preferences,
@@ -39,12 +40,12 @@ const MainContent: React.FC = () => {
     }
   }, []);
 
-  const scrollToElement = useCallback((id: string) => {
+  const scrollToElement = useCallback((id: string, behavior: ScrollBehavior = 'smooth') => {
     const el = scrollTargets.current.get(id);
     if (el) {
       const yOffset = -120; // Top header + ribbon height offset
       const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
-      window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+      window.scrollTo({ top: Math.max(0, y), behavior });
     }
   }, []);
 
@@ -54,14 +55,43 @@ const MainContent: React.FC = () => {
     }
   }, [currentSectionId, scrollToElement]);
 
+  // Returning to the teaching procedure (from Student Notes, or when opening a
+  // lesson) always restores the saved teaching position. Manual scrolling is
+  // never interrupted while the teacher stays in the lesson view, and an
+  // explicit "jump to X" always wins over the automatic restore.
+  const previousModeRef = useRef(viewMode);
+  const previousLessonRef = useRef(activeLessonId);
+  const pendingNavScrollRef = useRef<string | null>(null);
+  useEffect(() => {
+    const previousMode = previousModeRef.current;
+    const previousLesson = previousLessonRef.current;
+    previousModeRef.current = viewMode;
+    previousLessonRef.current = activeLessonId;
+
+    if (pendingNavScrollRef.current) {
+      pendingNavScrollRef.current = null;
+      return;
+    }
+
+    if (viewMode !== 'lesson' || !currentSectionId) return;
+    const enteringFromNotebook = previousMode === 'notebook';
+    const lessonChanged = previousLesson !== activeLessonId;
+    if (!enteringFromNotebook && !lessonChanged) return;
+
+    const timer = setTimeout(() => scrollToElement(currentSectionId, 'auto'), 80);
+    return () => clearTimeout(timer);
+  }, [viewMode, activeLessonId, currentSectionId, scrollToElement]);
+
   const handleSelectSectionFromNav = (sectionId: string) => {
     setCurrentSection(sectionId);
     if (viewMode !== 'lesson') {
       setViewMode('lesson');
     }
     // Delay scroll slightly to allow DOM layout
+    pendingNavScrollRef.current = sectionId;
     setTimeout(() => {
       scrollToElement(sectionId);
+      pendingNavScrollRef.current = null;
     }, 80);
   };
 
@@ -69,8 +99,10 @@ const MainContent: React.FC = () => {
     if (viewMode !== 'lesson') {
       setViewMode('lesson');
     }
+    pendingNavScrollRef.current = anchorId;
     setTimeout(() => {
       scrollToElement(anchorId);
+      pendingNavScrollRef.current = null;
     }, 80);
   };
 

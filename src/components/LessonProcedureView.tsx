@@ -97,14 +97,16 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
         <div
           id="lesson-objectives"
           ref={(el) => registerScrollTarget('lesson-objectives', el)}
-          className="my-6 p-4 sm:p-5 bg-[#F4EFE6] border-l-2 border-[#78350F] rounded-r"
+          className="my-6 pl-3 sm:pl-4 border-l-2 border-[#78350F]"
         >
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between gap-2 mb-2">
             <h2 className="text-xs font-mono uppercase tracking-wider text-[#78350F] font-semibold flex items-center gap-1.5">
               <Target className="w-3.5 h-3.5" />
               Learning Objectives
             </h2>
-            <span className="text-[11px] text-[#786F62]">5 Measurable Targets</span>
+            <span className="text-[11px] text-[#786F62] shrink-0">
+              {activeLesson.learningObjectives.length} measurable targets
+            </span>
           </div>
 
           <p className="text-xs text-[#6B6358] mb-3">
@@ -129,15 +131,15 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
           ref={(el) => registerScrollTarget('lesson-materials', el)}
           className="mt-6"
         >
-          <h2 className="text-xs font-mono uppercase tracking-wider text-[#786F62] font-semibold mb-2.5 flex items-center gap-1.5">
+          <h2 className="text-xs font-mono uppercase tracking-wider text-[#786F62] font-semibold mb-1.5 flex items-center gap-1.5">
             <Package className="w-3.5 h-3.5 text-[#8C8375]" />
             Materials & Resources
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-[#443E37]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-0.5 text-xs text-[#443E37]">
             {activeLesson.materials.map((mat, i) => (
-              <div key={i} className="flex items-center gap-2 py-1 px-2.5 bg-[#F7F3EB] rounded border border-[#EAE1CD]">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#9A3412]" />
-                <span className="truncate">{mat}</span>
+              <div key={i} className="flex items-start gap-2 py-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#9A3412] mt-1.5 shrink-0" />
+                <span>{mat}</span>
               </div>
             ))}
           </div>
@@ -160,7 +162,7 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
 
           <button
             onClick={onOpenSectionNav}
-            className="text-xs font-medium text-[#9A3412] hover:underline flex items-center gap-1"
+            className="flex items-center gap-1 min-h-[36px] px-2 -mx-2 text-xs font-medium text-[#9A3412] hover:underline"
           >
             <span>Index</span>
             <ArrowRight className="w-3 h-3" />
@@ -180,28 +182,28 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
                 registerScrollTarget(section.id, el);
                 if (isCurrent) currentSectionRef.current = el;
               }}
-              className={`relative transition-all duration-200 rounded-md p-4 sm:p-6 ${
+              className={`relative transition-colors duration-200 p-4 sm:p-6 border-l-[3px] ${
                 isCurrent
-                  ? 'bg-[#F4EFE5] border-l-4 border-[#9A3412] shadow-xs ring-1 ring-[#E2D6C0]'
-                  : 'bg-transparent border-l-2 border-[#DDD4C1] hover:border-[#BAAEA0]'
+                  ? 'bg-[#F8F2E5] border-[#9A3412]'
+                  : 'bg-transparent border-[#E3DAC9] hover:border-[#C4B7A2]'
               }`}
             >
-              {/* CURRENT POSITION IDENTIFIER (Section 10 & 27: Unmistakable when looking back) */}
+              {/* CURRENT POSITION IDENTIFIER: calm, persistent, readable at a glance */}
               {isCurrent && (
-                <div className="mb-3 flex items-center justify-between text-xs font-mono font-bold text-[#9A3412] tracking-wider uppercase">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#9A3412] animate-ping" />
-                    <span>Current Teaching Position</span>
-                  </div>
-                  <span className="text-[11px] text-[#786F62] normal-case font-normal font-sans">
+                <div className="mb-3 flex items-center justify-between gap-2 text-[11px] font-mono font-bold text-[#9A3412] tracking-wider uppercase">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#9A3412]" aria-hidden="true" />
                     You are here
+                  </span>
+                  <span className="text-[10px] text-[#786F62] normal-case font-sans font-medium">
+                    Section {index + 1} of {activeLesson.sections.length}
                   </span>
                 </div>
               )}
 
               {/* Section Header */}
-              <div className="flex items-start justify-between gap-3 mb-4">
-                <div>
+              <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2 mb-4">
+                <div className="min-w-0">
                   {section.groupTitle && (
                     <span className="text-[11px] font-mono uppercase tracking-widest text-[#786F62]">
                       {section.groupTitle}
@@ -218,9 +220,9 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
                 </div>
 
                 {/* Timing & completion actions */}
-                <div className="flex items-center gap-2 shrink-0 pt-1">
+                <div className="flex items-center gap-1.5 shrink-0 ml-auto pt-0.5">
                   {section.suggestedDurationMinutes && preferences.showTimingGuidance && (
-                    <span className="text-xs font-mono text-[#786F62] bg-[#EDE5D5] px-2 py-0.5 rounded tabular-nums flex items-center gap-1">
+                    <span className="text-xs font-mono text-[#786F62] bg-[#EDE5D5] px-2 py-1 rounded tabular-nums flex items-center gap-1">
                       <Clock className="w-3 h-3 text-[#A89E8F]" />
                       {section.suggestedDurationMinutes} min
                     </span>
@@ -230,7 +232,7 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
                   {!isCurrent && (
                     <button
                       onClick={() => setCurrentSection(section.id)}
-                      className="text-xs text-[#786F62] hover:text-[#9A3412] hover:bg-[#EAE1CD] px-2 py-0.5 rounded transition-colors"
+                      className="min-h-[32px] px-2.5 py-1.5 text-xs text-[#786F62] hover:text-[#9A3412] hover:bg-[#EAE1CD] rounded transition-colors"
                       title="Set as your current position"
                     >
                       Set as Current
@@ -240,7 +242,7 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
                   {/* Completed Checkbox */}
                   <button
                     onClick={() => toggleSectionCompleted(section.id)}
-                    className="p-1 text-[#8C8375] hover:text-emerald-700 transition-colors"
+                    className="flex items-center justify-center min-h-[32px] min-w-[32px] p-2 -m-1 text-[#8C8375] hover:text-emerald-700 hover:bg-[#EAE1CD] rounded transition-colors"
                     title={isCompleted ? 'Mark incomplete' : 'Mark section completed'}
                     aria-label={isCompleted ? 'Mark incomplete' : 'Mark completed'}
                   >
@@ -254,18 +256,13 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
               </div>
 
               {/* ───────────────────────────────────────────────────
-                  TEACHER GUIDANCE BLOCK (Section 15: Distinct Visuals)
+                  TEACHER GUIDANCE: the core teaching content, unboxed
               ─────────────────────────────────────────────────── */}
-              <div className="my-4 p-4 bg-[#F8F4EC] border border-[#E8DEC9] rounded">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-mono uppercase tracking-wider text-[#78350F] font-semibold flex items-center gap-1">
-                    <Eye className="w-3 h-3 text-[#78350F]" />
-                    Teacher Guidance
-                  </span>
-                  <span className="text-[10px] text-[#8C8375] uppercase">
-                    Instructional Execution
-                  </span>
-                </div>
+              <div className="my-4 pl-3 sm:pl-4 border-l-2 border-[#E0D5BE]">
+                <span className="text-[11px] font-mono uppercase tracking-wider text-[#78350F] font-semibold flex items-center gap-1.5 mb-2">
+                  <Eye className="w-3 h-3 text-[#78350F]" />
+                  Teacher Guidance
+                </span>
 
                 <div className={`space-y-2.5 text-[#292524] ${fontClasses.body}`}>
                   {section.teacherGuidance.map((step, idx) => (
@@ -280,9 +277,9 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
                   <div className="mt-3.5 pt-3 border-t border-[#EAE0CB]">
                     <div className="flex items-start gap-2">
                       <MessageSquareQuote className="w-4 h-4 text-[#9A3412] shrink-0 mt-0.5" />
-                      <div>
+                      <div className="min-w-0">
                         <span className="text-[10px] font-mono uppercase text-[#786F62] tracking-wider block mb-0.5">
-                          Say to class / Suggested Prompt:
+                          Say to class / Suggested prompt:
                         </span>
                         <blockquote className={`${fontClasses.quote} text-[#1C1917] font-serif`}>
                           “{section.teacherQuote}”
@@ -311,20 +308,20 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
                   STUDENT NOTE SNIPPET (Section 15 & 16)
               ─────────────────────────────────────────────────── */}
               {section.studentNoteSnippet && (
-                <div className="my-4 p-3.5 bg-[#FAF7F0] border-l-2 border-[#1E3A8A] rounded-r">
-                  <div className="flex items-center justify-between mb-1.5">
+                <div className="my-4 pl-3 sm:pl-4 border-l-2 border-[#1E3A8A]">
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-1.5">
                     <span className="text-[11px] font-mono uppercase tracking-wider text-[#1E3A8A] font-semibold flex items-center gap-1.5">
                       <BookOpen className="w-3 h-3 text-[#1E3A8A]" />
                       Student Note Material
                     </span>
                     <button
                       onClick={() => setViewMode('notebook')}
-                      className="text-[11px] text-[#1E3A8A] hover:underline font-medium"
+                      className="text-[11px] text-[#1E3A8A] hover:underline font-medium min-h-[32px] px-1 -mx-1"
                     >
                       Open in Student Notebook →
                     </button>
                   </div>
-                  <p className="text-xs sm:text-sm text-[#1C1917] leading-relaxed font-serif bg-white/50 p-2.5 rounded border border-[#EDE4D0]">
+                  <p className="text-xs sm:text-sm text-[#1C1917] leading-relaxed font-serif">
                     {section.studentNoteSnippet}
                   </p>
                 </div>
@@ -336,20 +333,20 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
               {section.resources && section.resources.length > 0 && (
                 <div className="mt-4 pt-3 border-t border-[#E5DAC4]">
                   <span className="text-[10px] font-mono uppercase tracking-wider text-[#786F62] block mb-2">
-                    Attached Lesson Materials:
+                    Attached lesson materials:
                   </span>
                   <div className="flex flex-wrap gap-2">
                     {section.resources.map((res) => (
                       <button
                         key={res.id}
                         onClick={() => onOpenResource(res)}
-                        className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#EFE8D8] hover:bg-[#E4DBC8] text-[#1C1917] text-xs rounded border border-[#DDD3BF] transition-colors"
+                        className="inline-flex items-center gap-2 min-h-[40px] px-3 py-2 bg-[#EFE8D8] hover:bg-[#E4DBC8] text-[#1C1917] text-xs rounded border border-[#DDD3BF] transition-colors"
                       >
                         {res.type === 'image' && <ImageIcon className="w-3.5 h-3.5 text-[#9A3412]" />}
                         {res.type === 'link' && <ExternalLink className="w-3.5 h-3.5 text-[#1E3A8A]" />}
-                        <span className="font-medium truncate max-w-[240px]">{res.title}</span>
-                        <span className="text-[10px] text-[#786F62] uppercase font-mono">
-                          View
+                        {res.type === 'video' && <ExternalLink className="w-3.5 h-3.5 text-[#9A3412]" />}
+                        <span className="font-medium truncate max-w-[200px] sm:max-w-[260px]">
+                          {res.title}
                         </span>
                       </button>
                     ))}
@@ -383,27 +380,32 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
 
         <div className="space-y-4">
           {activeLesson.evaluationQuestions.map((q) => (
-            <div key={q.id} className="p-4 bg-[#F7F3EB] rounded border border-[#E6DCC6]">
+            <div
+              key={q.id}
+              className="pb-4 border-b border-[#EAE1CD] last:border-0 last:pb-0"
+            >
               <div className="flex items-start gap-2.5">
-                <span className="text-xs font-mono font-bold text-[#9A3412] mt-0.5">
+                <span className="text-xs font-mono font-bold text-[#9A3412] mt-0.5 shrink-0">
                   Q{q.questionNumber}.
                 </span>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-[#1C1917]">{q.question}</p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                    <p className="text-sm font-medium text-[#1C1917]">{q.question}</p>
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-[#786F62]">
+                      {q.type}
+                    </span>
+                  </div>
                   {q.expectedAnswer && (
                     <details className="mt-2 text-xs text-[#574D42] group">
-                      <summary className="cursor-pointer text-[#78350F] hover:underline font-mono text-[11px] select-none">
+                      <summary className="cursor-pointer text-[#78350F] hover:underline font-mono text-[11px] select-none min-h-[32px] flex items-center">
                         Show Expected Answer & Marking Guide
                       </summary>
-                      <p className="mt-2 p-2.5 bg-white/70 rounded border border-[#E8DEC9] text-[#292524] leading-relaxed">
+                      <p className="mt-1 mb-1 pl-3 border-l-2 border-[#E0D5BE] text-[#292524] leading-relaxed">
                         {q.expectedAnswer}
                       </p>
                     </details>
                   )}
                 </div>
-                <span className="text-[10px] font-mono uppercase text-[#786F62] bg-[#EAE0CB] px-1.5 py-0.5 rounded">
-                  {q.type}
-                </span>
               </div>
             </div>
           ))}
@@ -416,7 +418,7 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
       <section
         id="lesson-assignment"
         ref={(el) => registerScrollTarget('lesson-assignment', el)}
-        className="mt-12 p-5 bg-[#F4EFE6] border border-[#DDD3BF] rounded-lg"
+        className="mt-12 pt-6 border-t-2 border-[#DDD3BF]"
       >
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-mono uppercase tracking-wider text-[#78350F] font-semibold flex items-center gap-1.5">

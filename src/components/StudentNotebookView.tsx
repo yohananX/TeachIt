@@ -46,28 +46,31 @@ export const StudentNotebookView: React.FC<StudentNotebookViewProps> = ({ onBack
   return (
     <div className={`w-full max-w-4xl mx-auto px-4 sm:px-6 py-6 pb-28 ${isPresenterMode ? 'fixed inset-0 z-50 bg-[#FAF8F2] overflow-y-auto p-8 max-w-none' : ''}`}>
       {/* Control bar */}
-      <div className="flex items-center justify-between gap-3 mb-6 pb-4 border-b border-[#E0D7C4]">
+      <div className="flex flex-wrap items-center justify-between gap-2 gap-y-3 mb-6 pb-4 border-b border-[#E0D7C4]">
         <button
           onClick={onBackToLesson}
-          className="inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-[#78350F] hover:text-[#522409] hover:underline cursor-pointer"
+          className="inline-flex items-center gap-2 min-h-[40px] px-1 -mx-1 text-xs sm:text-sm font-medium text-[#78350F] hover:text-[#522409] hover:underline cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Return to Teaching Procedure</span>
+          <span>
+            <span className="sm:hidden">Teaching Procedure</span>
+            <span className="hidden sm:inline">Return to Teaching Procedure</span>
+          </span>
         </button>
 
         <div className="flex items-center gap-2">
           <button
             onClick={handleCopyNotes}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#574D42] bg-[#EDE5D5] hover:bg-[#E2DACB] rounded transition-colors"
+            className="inline-flex items-center gap-1.5 min-h-[40px] px-3 py-1.5 text-xs font-medium text-[#574D42] bg-[#EDE5D5] hover:bg-[#E2DACB] rounded transition-colors"
             title="Copy formatted note text"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-700" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copied ? 'Copied to Clipboard' : 'Copy Note'}</span>
+            <span>{copied ? 'Copied' : 'Copy Note'}</span>
           </button>
 
           <button
             onClick={handlePrint}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#574D42] bg-[#EDE5D5] hover:bg-[#E2DACB] rounded transition-colors hidden sm:inline-flex"
+            className="inline-flex items-center gap-1.5 min-h-[40px] px-3 py-1.5 text-xs font-medium text-[#574D42] bg-[#EDE5D5] hover:bg-[#E2DACB] rounded transition-colors hidden sm:inline-flex"
             title="Print or Export Student Note"
           >
             <Printer className="w-3.5 h-3.5" />
@@ -76,8 +79,9 @@ export const StudentNotebookView: React.FC<StudentNotebookViewProps> = ({ onBack
 
           <button
             onClick={() => setIsPresenterMode(!isPresenterMode)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#9A3412] hover:bg-[#852C0F] rounded transition-colors"
+            className="inline-flex items-center gap-1.5 min-h-[40px] px-3 py-1.5 text-xs font-medium text-white bg-[#9A3412] hover:bg-[#852C0F] rounded transition-colors"
             title="Project large clean notes on board for students to copy"
+            aria-label={isPresenterMode ? 'Exit presentation' : 'Present to class'}
           >
             {isPresenterMode ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
             <span className="hidden sm:inline">{isPresenterMode ? 'Exit Presentation' : 'Present to Class'}</span>
@@ -88,12 +92,12 @@ export const StudentNotebookView: React.FC<StudentNotebookViewProps> = ({ onBack
       {/* ─────────────────────────────────────────────────────────────
           THE NOTEBOOK PAGE CONTAINER (Section 21 Visual Design)
       ───────────────────────────────────────────────────────────── */}
-      <div className="relative bg-[#FAF8F2] border border-[#DDD3BF] rounded-lg shadow-sm overflow-hidden p-6 sm:p-10 notebook-subtle-lines">
+      <div className="relative bg-[#FAF8F2] border border-[#DDD3BF] rounded-lg shadow-sm overflow-hidden p-4 sm:p-10 notebook-subtle-lines">
         {/* Left notebook vertical margin rule */}
-        <div className="absolute top-0 bottom-0 left-8 sm:left-14 w-[1px] bg-red-400/35 pointer-events-none" />
+        <div className="absolute top-0 bottom-0 left-6 sm:left-14 w-[1px] bg-red-400/35 pointer-events-none" />
 
         {/* ── NOTEBOOK HEADER SPACE (Subject, Topic, Date, Class) ── */}
-        <div className="pl-6 sm:pl-10 pb-6 mb-8 border-b-2 border-[#1E3A8A]/30">
+        <div className="pl-5 sm:pl-10 pb-5 mb-6 sm:mb-8 border-b-2 border-[#1E3A8A]/30">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono uppercase tracking-wider text-[#574D42]">
             <div>
               <span className="text-[#8C8375] block text-[10px]">SUBJECT:</span>
@@ -126,7 +130,7 @@ export const StudentNotebookView: React.FC<StudentNotebookViewProps> = ({ onBack
         </div>
 
         {/* ── NOTEBOOK CONTENT SECTIONS ── */}
-        <div className="pl-6 sm:pl-10 space-y-8">
+        <div className="pl-5 sm:pl-10 space-y-8">
           {note.sections.map((section, idx) => (
             <section key={idx} className="space-y-3">
               <div className="border-b border-[#E8DEC9] pb-1">
@@ -185,7 +189,7 @@ export const StudentNotebookView: React.FC<StudentNotebookViewProps> = ({ onBack
         </div>
 
         {/* Notebook page bottom footer rule */}
-        <div className="pl-6 sm:pl-10 mt-12 pt-4 border-t border-[#EAE1CD] flex items-center justify-between text-[11px] font-mono text-[#8C8375]">
+        <div className="pl-5 sm:pl-10 mt-12 pt-4 border-t border-[#EAE1CD] flex flex-wrap items-center justify-between gap-1 text-[11px] font-mono text-[#8C8375]">
           <span>TeachIt Notebook Edition</span>
           <span>End of Student Lesson Note · Page 1/1</span>
         </div>

@@ -22,14 +22,17 @@ export const SectionNavModal: React.FC<SectionNavModalProps> = ({
   const sections = activeLesson.sections;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-3 sm:p-6 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-start justify-center sm:p-6 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150"
+      onClick={onClose}
+    >
       <div 
-        className="w-full max-w-lg bg-[#FAF8F3] border border-[#DDD3BF] rounded-lg shadow-xl overflow-hidden flex flex-col max-h-[88vh]"
+        className="w-full sm:max-w-lg bg-[#FAF8F3] border border-[#DDD3BF] rounded-t-xl sm:rounded-lg shadow-xl overflow-hidden flex flex-col max-h-[85vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#E8DFC9] bg-[#F2ECDD]">
-          <div>
+          <div className="min-w-0">
             <div className="text-xs uppercase tracking-wider text-[#786F62] font-mono">
               Lesson Procedure Index
             </div>
@@ -39,7 +42,7 @@ export const SectionNavModal: React.FC<SectionNavModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-[#574D42] hover:text-[#1C1917] hover:bg-[#E2D8C3] rounded transition-colors"
+            className="p-2 min-h-[40px] min-w-[40px] flex items-center justify-center text-[#574D42] hover:text-[#1C1917] hover:bg-[#E2D8C3] rounded transition-colors"
             aria-label="Close procedure index"
           >
             <X className="w-5 h-5" />
@@ -47,7 +50,7 @@ export const SectionNavModal: React.FC<SectionNavModalProps> = ({
         </div>
 
         {/* Quick jump anchors */}
-        <div className="px-5 py-2.5 bg-[#FAF7F0] border-b border-[#EAE1CD] flex items-center gap-2 overflow-x-auto text-xs text-[#574D42]">
+        <div className="px-5 py-2.5 bg-[#FAF7F0] border-b border-[#EAE1CD] flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#574D42]">
           <span className="font-semibold text-[#786F62] shrink-0">Jump:</span>
           <button
             onClick={() => {
@@ -166,7 +169,7 @@ export const SectionNavModal: React.FC<SectionNavModalProps> = ({
             <BookOpen className="w-3.5 h-3.5 text-[#9A3412]" />
             <span>Open Student Notebook</span>
           </button>
-          <span className="text-[#8C8375]">Click any section to jump immediately</span>
+          <span className="text-[#8C8375] hidden sm:inline">Click any section to jump immediately</span>
         </div>
       </div>
     </div>

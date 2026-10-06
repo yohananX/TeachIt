@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLesson } from '../context/LessonContext';
-import { ChevronLeft, ChevronRight, Menu, BookOpen, Compass, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Menu, BookOpen, Compass } from 'lucide-react';
 
 interface PositionRibbonProps {
   onOpenSectionNav: () => void;
@@ -11,7 +11,14 @@ export const PositionRibbon: React.FC<PositionRibbonProps> = ({
   onOpenSectionNav,
   onScrollToCurrentSection,
 }) => {
-  const { activeLesson, currentSectionId, setCurrentSection, viewMode, setViewMode } = useLesson();
+  const {
+    activeLesson,
+    currentSectionId,
+    setCurrentSection,
+    viewMode,
+    setViewMode,
+    preferences,
+  } = useLesson();
 
   if (!activeLesson) return null;
 
@@ -36,38 +43,45 @@ export const PositionRibbon: React.FC<PositionRibbonProps> = ({
   };
 
   return (
-    <aside aria-label="Lesson position" className="sticky top-[53px] z-20 bg-[#F4EFE6]/98 backdrop-blur-md border-b border-[#E2D8C3] px-3 sm:px-8 py-2">
+    <aside
+      aria-label="Lesson position"
+      className="sticky top-[53px] z-20 bg-[#F4EFE6]/98 backdrop-blur-md border-b border-[#E2D8C3] px-2 sm:px-8 py-2"
+    >
       <div className="max-w-4xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
-        {/* Left: Compact navigation trigger & location */}
-        <div className="flex items-center gap-2 min-w-0">
+        {/* Left: lesson index trigger + current location */}
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           <button
             onClick={onOpenSectionNav}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-[#1C1917] bg-[#E8DFC9] hover:bg-[#DDD2BA] rounded transition-colors shrink-0"
-            title="Open full lesson procedure index"
+            className="flex items-center justify-center gap-1.5 min-h-[30px] px-2 sm:px-2.5 py-1.5 text-xs font-medium text-[#1C1917] bg-[#E8DFC9] hover:bg-[#DDD2BA] rounded transition-colors shrink-0"
+            title="Open the lesson index"
+            aria-label="Open the lesson index"
           >
-            <Menu className="w-3.5 h-3.5" />
-            <span className="font-semibold">☰ Lesson</span>
+            <Menu className="w-4 h-4" />
+            <span className="font-semibold hidden sm:inline">Lesson</span>
           </button>
 
-          <div className="h-4 w-[1px] bg-[#DDD2BA] hidden xs:block" />
+          <div className="h-4 w-[1px] bg-[#DDD2BA] hidden sm:block shrink-0" />
 
-          {/* Current Section indicator */}
+          {/* Current section: the "Where am I?" answer */}
           <button
             onClick={() => {
               if (viewMode !== 'lesson') setViewMode('lesson');
               onScrollToCurrentSection();
             }}
-            className="flex items-center gap-1.5 text-left group truncate hover:opacity-80 transition-opacity"
-            title="Click to jump to your active section"
+            className="flex items-center gap-1.5 min-w-0 flex-1 text-left group py-0.5"
+            title="Jump back to your active section"
           >
-            <span className="inline-block w-2 h-2 rounded-full bg-[#9A3412] shrink-0 animate-pulse" />
+            <span
+              className="w-2 h-2 rounded-full bg-[#9A3412] shrink-0"
+              aria-hidden="true"
+            />
             <span className="text-xs font-mono font-semibold text-[#9A3412] shrink-0">
               {currentSection?.sectionNumber}.
             </span>
             <span className="text-xs sm:text-sm font-medium text-[#1C1917] truncate group-hover:underline">
               {currentSection?.title}
             </span>
-            {currentSection?.suggestedDurationMinutes && (
+            {currentSection?.suggestedDurationMinutes && preferences.showTimingGuidance && (
               <span className="text-xs text-[#786F62] hidden sm:inline shrink-0">
                 · {currentSection.suggestedDurationMinutes} min
               </span>
@@ -75,15 +89,16 @@ export const PositionRibbon: React.FC<PositionRibbonProps> = ({
           </button>
         </div>
 
-        {/* Right: Step controls & Quick View switch */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        {/* Right: mode switch (primary) + step controls (secondary) */}
+        <div className="flex items-center gap-1 shrink-0">
           {viewMode === 'lesson' ? (
             <button
               onClick={() => setViewMode('notebook')}
-              className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#574D42] hover:text-[#1C1917] hover:bg-[#E8DFC9] rounded transition-colors whitespace-nowrap"
+              className="flex items-center justify-center gap-1 min-h-[30px] px-2 sm:px-2.5 py-1.5 text-xs font-medium text-[#574D42] hover:text-[#1C1917] hover:bg-[#E8DFC9] rounded transition-colors whitespace-nowrap"
               title="View student notebook notes"
+              aria-label="Student notes"
             >
-              <BookOpen className="w-3.5 h-3.5 text-[#9A3412]" />
+              <BookOpen className="w-4 h-4 text-[#9A3412]" />
               <span className="hidden md:inline">Student Note</span>
             </button>
           ) : (
@@ -92,33 +107,34 @@ export const PositionRibbon: React.FC<PositionRibbonProps> = ({
                 setViewMode('lesson');
                 setTimeout(onScrollToCurrentSection, 50);
               }}
-              className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#9A3412] bg-[#E8DFC9] rounded transition-colors whitespace-nowrap"
+              className="flex items-center justify-center gap-1 min-h-[30px] px-2 sm:px-2.5 py-1.5 text-xs font-medium text-[#9A3412] bg-[#E8DFC9] rounded transition-colors whitespace-nowrap"
               title="Return to teaching procedure"
+              aria-label="Return to teaching procedure"
             >
-              <Compass className="w-3.5 h-3.5" />
-              <span>Teaching Procedure</span>
+              <Compass className="w-4 h-4" />
+              <span className="hidden sm:inline">Teaching Procedure</span>
             </button>
           )}
 
-          <div className="flex items-center gap-1 border-l border-[#E2D8C3] pl-1.5 sm:pl-2">
+          <div className="flex items-center gap-0.5 border-l border-[#E2D8C3] pl-1.5 sm:pl-2">
             <button
               onClick={handlePrev}
               disabled={currentIndex <= 0}
-              className="p-1 text-[#574D42] hover:text-[#1C1917] disabled:opacity-30 disabled:pointer-events-none hover:bg-[#E8DFC9] rounded transition-colors"
+              className="p-1.5 min-h-[30px] min-w-[30px] text-[#A89E8F] sm:text-[#574D42] hover:text-[#1C1917] disabled:opacity-30 disabled:pointer-events-none hover:bg-[#E8DFC9] rounded transition-colors"
               title="Previous section"
               aria-label="Previous section"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
 
-            <span className="text-xs font-mono text-[#786F62] px-1 hidden xs:inline tabular-nums">
+            <span className="text-xs font-mono text-[#786F62] px-1 hidden sm:inline tabular-nums">
               {currentIndex + 1}/{sections.length}
             </span>
 
             <button
               onClick={handleNext}
               disabled={currentIndex >= sections.length - 1}
-              className="p-1 text-[#574D42] hover:text-[#1C1917] disabled:opacity-30 disabled:pointer-events-none hover:bg-[#E8DFC9] rounded transition-colors"
+              className="p-1.5 min-h-[30px] min-w-[30px] text-[#A89E8F] sm:text-[#574D42] hover:text-[#1C1917] disabled:opacity-30 disabled:pointer-events-none hover:bg-[#E8DFC9] rounded transition-colors"
               title="Next section"
               aria-label="Next section"
             >
