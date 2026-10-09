@@ -12,7 +12,7 @@ import { ResourceViewerModal } from './components/ResourceViewerModal';
 import { PreferencesModal } from './components/PreferencesModal';
 import { LessonEditorModal } from './components/LessonEditorModal';
 import { LessonResource } from './types/lesson';
-import { getPaperThemeClass } from './utils/theme';
+import { applyPaperMode } from './utils/theme';
 
 const MainContent: React.FC = () => {
   const {
@@ -132,10 +132,13 @@ const MainContent: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [setIsSectionNavOpen, setIsPreferencesOpen, setIsEditorOpen, setActiveResource]);
 
-  const themeStyle = getPaperThemeClass(preferences.paperMode);
+  // Apply paper mode to document root for CSS custom properties
+  useEffect(() => {
+    applyPaperMode(preferences.paperMode);
+  }, [preferences.paperMode]);
 
   return (
-    <div className={`min-h-screen ${themeStyle.bg} text-[#1C1917] transition-colors duration-200 flex flex-col`}>
+    <div className="min-h-screen bg-paper text-ink transition-colors duration-200 flex flex-col">
       {/* 3-Zone Top Bar Contract */}
       <Header onOpenSettings={() => setIsPreferencesOpen(true)} />
 

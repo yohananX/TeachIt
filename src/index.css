@@ -1,47 +1,316 @@
 @import "tailwindcss";
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   TEACHIT DESIGN TOKENS — CSS Custom Properties (offline-first, no CDN deps)
+   All values defined here; components reference via var(--token-name).
+───────────────────────────────────────────────────────────────────────────── */
+
 @layer base {
   :root {
+    /* ─── Fonts (local @font-face below) ─── */
     --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     --font-serif: 'Newsreader', Georgia, serif;
     --font-mono: 'JetBrains Mono', monospace;
+
+    /* ─── Font sizes (base + fluid steps) ─── */
+    --text-xs: 0.75rem;      /* 12px */
+    --text-sm: 0.875rem;     /* 14px */
+    --text-base: 1rem;       /* 16px */
+    --text-lg: 1.125rem;     /* 18px */
+    --text-xl: 1.25rem;      /* 20px */
+    --text-2xl: 1.5rem;      /* 24px */
+    --text-3xl: 1.875rem;    /* 30px */
+    --text-4xl: 2.25rem;     /* 36px */
+    --text-5xl: 3rem;        /* 48px */
+
+    /* ─── Spacing scale ─── */
+    --space-1: 0.25rem;   /* 4px */
+    --space-2: 0.5rem;    /* 8px */
+    --space-3: 0.75rem;   /* 12px */
+    --space-4: 1rem;      /* 16px */
+    --space-5: 1.25rem;   /* 20px */
+    --space-6: 1.5rem;    /* 24px */
+    --space-8: 2rem;      /* 32px */
+    --space-10: 2.5rem;   /* 40px */
+    --space-12: 3rem;     /* 48px */
+    --space-16: 4rem;     /* 64px */
+
+    /* ─── Border radius ─── */
+    --radius-sm: 0.25rem;
+    --radius-md: 0.375rem;
+    --radius-lg: 0.5rem;
+    --radius-xl: 0.75rem;
+
+    /* ─── Shadows ─── */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+
+    /* ─── Transitions ─── */
+    --transition-fast: 150ms ease;
+    --transition-base: 200ms ease;
+    --transition-slow: 300ms ease;
+
+    /* ─── Z-index layers ─── */
+    --z-dropdown: 100;
+    --z-sticky: 200;
+    --z-fixed: 300;
+    --z-modal-backdrop: 400;
+    --z-modal: 500;
+    --z-toast: 600;
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       PAPER MODES — each mode defines a complete semantic palette.
+       Switch by setting data-paper-mode on <html> or <body>.
+       Default = warm-paper.
+    ═══════════════════════════════════════════════════════════════════════ */
+
+    /* ── warm-paper (default) ── */
+    --paper-bg: #FBF9F5;
+    --paper-bg-elevated: #F5F1E8;
+    --paper-border: #E6DEC8;
+    --paper-border-strong: #D4C4A8;
+    --ink: #1C1917;
+    --ink-muted: #6B6358;
+    --ink-subtle: #8C8375;
+    --accent: #9A3412;        /* terracotta */
+    --accent-hover: #852C0F;
+    --accent-light: #F5EFE3;
+    --accent-muted: #D4A592;
+    --focus-ring: #9A3412;
+    --success: #059669;       /* emerald-600 */
+    --success-bg: #ECFDF5;
+    --error: #DC2626;         /* red-600 */
+    --error-bg: #FEF2F2;
+
+    /* Scrollbar */
+    --scrollbar-track: transparent;
+    --scrollbar-thumb: rgba(140, 120, 100, 0.2);
+    --scrollbar-thumb-hover: rgba(140, 120, 100, 0.4);
+
+    /* Notebook */
+    --notebook-line: rgba(140, 120, 100, 0.12);
+    --notebook-margin: rgba(239, 68, 68, 0.25);
+    --notebook-ruled-line: rgba(30, 64, 175, 0.12);
   }
 
+  /* ── clean-white mode ── */
+  [data-paper-mode="clean-white"] {
+    --paper-bg: #FFFFFF;
+    --paper-bg-elevated: #F8FAFC;
+    --paper-border: #E2E8F0;
+    --paper-border-strong: #CBD5E1;
+    --ink: #0F172A;
+    --ink-muted: #64748B;
+    --ink-subtle: #94A3B8;
+    --accent: #1E3A8A;        /* deep lapis */
+    --accent-hover: #1E40AF;
+    --accent-light: #EFF6FF;
+    --accent-muted: #93C5FD;
+    --focus-ring: #1E3A8A;
+    --success: #059669;
+    --success-bg: #ECFDF5;
+    --error: #DC2626;
+    --error-bg: #FEF2F2;
+
+    --scrollbar-track: transparent;
+    --scrollbar-thumb: rgba(148, 163, 184, 0.3);
+    --scrollbar-thumb-hover: rgba(148, 163, 184, 0.5);
+
+    --notebook-line: rgba(148, 163, 184, 0.15);
+    --notebook-margin: rgba(239, 68, 68, 0.25);
+    --notebook-ruled-line: rgba(30, 64, 175, 0.12);
+  }
+
+  /* ── slate-focus (dark) mode ── */
+  [data-paper-mode="slate-focus"] {
+    --paper-bg: #18181B;      /* stone-950 */
+    --paper-bg-elevated: #27272A; /* stone-900 */
+    --paper-border: #3F3F46;  /* stone-800 */
+    --paper-border-strong: #52525B; /* stone-700 */
+    --ink: #F4F4F5;           /* stone-100 */
+    --ink-muted: #A1A1AA;     /* stone-400 */
+    --ink-subtle: #71717A;    /* stone-500 */
+    --accent: #D97706;        /* warm amber */
+    --accent-hover: #F59E0B;
+    --accent-light: #3F3F46;
+    --accent-muted: #FDE68A;
+    --focus-ring: #D97706;
+    --success: #10B981;
+    --success-bg: #064E3B;
+    --error: #EF4444;
+    --error-bg: #7F1D1D;
+
+    --scrollbar-track: transparent;
+    --scrollbar-thumb: rgba(113, 113, 122, 0.4);
+    --scrollbar-thumb-hover: rgba(113, 113, 122, 0.6);
+
+    --notebook-line: rgba(113, 113, 122, 0.2);
+    --notebook-margin: rgba(251, 191, 36, 0.3);
+    --notebook-ruled-line: rgba(59, 130, 246, 0.15);
+  }
+
+  /* ─── Base body styles ─── */
   body {
     font-family: var(--font-sans);
-    background-color: #FBF9F5;
-    color: #1C1917;
+    background-color: var(--paper-bg);
+    color: var(--ink);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
+
+  /* ─── Selection ─── */
+  ::selection {
+    background-color: var(--accent-light);
+    color: var(--ink);
+  }
+
+  /* ─── Focus visible ─── */
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  /* ─── Custom scrollbar ─── */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+
+  /* ─── Notebook patterns (CSS-only, no images) ─── */
+
+  /* Subtle horizontal grid — used in lesson procedure */
+  .notebook-subtle-lines {
+    background-image: linear-gradient(
+      to bottom,
+      transparent 31px,
+      var(--notebook-line) 32px
+    );
+    background-size: 100% 32px;
+  }
+
+  /* Ruled notebook paper — used in StudentNoteBlock */
+  .notebook-ruled-paper {
+    background-color: var(--paper-bg);
+    background-image:
+      /* vertical red margin line */
+      linear-gradient(
+        to right,
+        transparent 54px,
+        var(--notebook-margin) 54px,
+        var(--notebook-margin) 56px,
+        transparent 56px
+      ),
+      /* horizontal blue lines */
+      linear-gradient(
+        to bottom,
+        transparent 29px,
+        var(--notebook-ruled-line) 30px
+      );
+    background-size: 100% 100%, 100% 30px;
+    line-height: 30px;
+  }
+
+  /* Notebook left margin rule (absolute positioned in component) */
+  .notebook-margin-rule {
+    width: 1px;
+    background: var(--notebook-margin);
+  }
+
+  /* ─── Utility classes for common patterns ─── */
+
+  /* Typography helpers */
+  .text-ink { color: var(--ink); }
+  .text-ink-muted { color: var(--ink-muted); }
+  .text-ink-subtle { color: var(--ink-subtle); }
+  .text-accent { color: var(--accent); }
+  .text-success { color: var(--success); }
+  .text-error { color: var(--error); }
+
+  .bg-paper { background-color: var(--paper-bg); }
+  .bg-paper-elevated { background-color: var(--paper-bg-elevated); }
+  .bg-accent { background-color: var(--accent); }
+  .bg-accent-light { background-color: var(--accent-light); }
+  .bg-success { background-color: var(--success-bg); }
+  .bg-error { background-color: var(--error-bg); }
+
+  .border-paper { border-color: var(--paper-border); }
+  .border-paper-strong { border-color: var(--paper-border-strong); }
+  .border-accent { border-color: var(--accent); }
+
+  /* Focus ring utility */
+  .focus-ring {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2;
+    --tw-ring-color: var(--focus-ring);
+    --tw-ring-offset-color: var(--paper-bg);
+  }
+
+  /* Transition helpers */
+  .transition-fast { transition: all var(--transition-fast); }
+  .transition-base { transition: all var(--transition-base); }
+  .transition-slow { transition: all var(--transition-slow); }
+
+  /* Font family utilities */
+  .font-sans { font-family: var(--font-sans); }
+  .font-serif { font-family: var(--font-serif); }
+  .font-mono { font-family: var(--font-mono); }
 }
 
-/* Notebook paper lined pattern for Student Note mode */
-.notebook-ruled-paper {
-  background-color: #FAF8F2;
-  background-image: 
-    linear-gradient(to right, transparent 54px, rgba(239, 68, 68, 0.25) 54px, rgba(239, 68, 68, 0.25) 56px, transparent 56px),
-    linear-gradient(to bottom, transparent 29px, rgba(30, 64, 175, 0.12) 30px);
-  background-size: 100% 100%, 100% 30px;
-  line-height: 30px;
+/* ════════════════════════════════════════════════════════════════════════
+   LOCAL FONTS — @font-face declarations (offline, no Google Fonts CDN)
+   Place font files in public/fonts/ and reference via /fonts/
+════════════════════════════════════════════════════════════════════════ */
+
+/* Plus Jakarta Sans — variable font (wght 400-700) */
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  src: url('/fonts/PlusJakartaSans-VariableFont_wght.woff2') format('woff2-variations');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
 }
 
-/* Notebook subtle horizontal grid */
-.notebook-subtle-lines {
-  background-image: linear-gradient(to bottom, transparent 31px, rgba(140, 120, 100, 0.12) 32px);
-  background-size: 100% 32px;
+/* Newsreader — variable font (opsz, wght, ital) */
+@font-face {
+  font-family: 'Newsreader';
+  src: url('/fonts/Newsreader-VariableFont_opsz,wght,ital.woff2') format('woff2-variations');
+  font-weight: 400 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Newsreader';
+  src: url('/fonts/Newsreader-VariableFont_opsz,wght,ital.woff2') format('woff2-variations');
+  font-weight: 400 600;
+  font-style: italic;
+  font-display: swap;
 }
 
-/* Custom scrollbar for distraction-free reading */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* JetBrains Mono — variable font (wght 400-600) */
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/JetBrainsMono-VariableFont_wght.woff2') format('woff2-variations');
+  font-weight: 400 600;
+  font-style: normal;
+  font-display: swap;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(140, 120, 100, 0.2);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(140, 120, 100, 0.4);
+
+/* ─── Print styles for StudentNoteBlock ─── */
+@media print {
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+  body { background: white !important; color: black !important; }
+  .notebook-ruled-paper { box-shadow: none !important; border: none !important; }
 }
