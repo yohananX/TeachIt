@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLesson } from '../context/LessonContext';
 import { Plus, Play, Search } from 'lucide-react';
+import { getLessonScope } from '../utils/curriculum';
 
 interface LessonLibraryViewProps {
   onOpenNewLesson: () => void;
@@ -10,6 +11,9 @@ export const LessonLibraryView: React.FC<LessonLibraryViewProps> = ({ onOpenNewL
   const {
     classes,
     subjects,
+    topics,
+    weeks,
+    sessions,
     lessons,
     selectedClassId,
     setSelectedClassId,
@@ -23,18 +27,19 @@ export const LessonLibraryView: React.FC<LessonLibraryViewProps> = ({ onOpenNewL
   const classSubjects = subjects.filter((s) => s.classId === selectedClassId);
 
   const filteredLessons = lessons.filter((l) => {
-    const matchesClass = l.classId === selectedClassId;
-    const matchesSubject = !selectedSubjectId || l.subjectId === selectedSubjectId;
+    const scope = getLessonScope(l.topicId, topics, weeks, sessions);
+    const subject = subjects.find((s) => s.id === scope.subjectId);
+    const matchesClass = subject?.classId === selectedClassId;
+    const matchesSubject = !selectedSubjectId || scope.subjectId === selectedSubjectId;
     const matchesSearch =
       !searchQuery ||
-      l.topic.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      l.subjectName.toLowerCase().includes(searchQuery.toLowerCase());
+      l.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      scope.topic?.title.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesClass && matchesSubject && matchesSearch;
   });
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-8 py-8 pb-28">
-      {/* Editorial Library Banner */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8 pb-6 border-b border-[#E2D8C3]">
         <div>
           <span className="text-xs font-mono uppercase tracking-widest text-[#786F62] block mb-1">
@@ -57,7 +62,6 @@ export const LessonLibraryView: React.FC<LessonLibraryViewProps> = ({ onOpenNewL
         </button>
       </div>
 
-      {/* Class Selector Tabs (Functional Segmented Control) */}
       <div className="mb-6">
         <label className="text-xs font-mono uppercase tracking-wider text-[#786F62] block mb-2">
           Select Active Class:
@@ -87,7 +91,6 @@ export const LessonLibraryView: React.FC<LessonLibraryViewProps> = ({ onOpenNewL
         </div>
       </div>
 
-      {/* Subject Filter & Search Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-8">
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
           <span className="text-xs font-mono text-[#786F62] mr-1 hidden sm:inline">Subjects:</span>
@@ -109,7 +112,6 @@ export const LessonLibraryView: React.FC<LessonLibraryViewProps> = ({ onOpenNewL
           })}
         </div>
 
-        {/* Search input */}
         <div className="relative min-w-[220px]">
           <Search className="w-3.5 h-3.5 text-[#8C8375] absolute left-3 top-1/2 -translate-y-1/2" />
           <input
@@ -122,9 +124,6 @@ export const LessonLibraryView: React.FC<LessonLibraryViewProps> = ({ onOpenNewL
         </div>
       </div>
 
-      {/* ─────────────────────────────────────────────────────────────
-          LESSON LIST (Clean, unboxed metadata, zero pill badge sandwiches)
-      ───────────────────────────────────────────────────────────── */}
       <div className="space-y-4">
         {filteredLessons.length === 0 ? (
           <div className="py-16 text-center bg-[#F7F3EB] rounded-lg border border-[#E4DAC5]">
@@ -143,29 +142,25 @@ export const LessonLibraryView: React.FC<LessonLibraryViewProps> = ({ onOpenNewL
             const currentSec = lesson.sections.find((s) => s.id === lesson.currentSectionId);
             const isInProgress = lesson.status === 'in_progress';
             const isTaught = lesson.status === 'taught';
+            const scope = getLessonScope(lesson.topicId, topics, weeks, sessions);
+            const subjectName = subjects.find((s) => s.id === scope.subjectId)?.name ?? '';
 
             return (
               <div
                 key={lesson.id}
                 className="bg-[#FAF8F3] border border-[#DDD3BF] rounded-lg p-5 hover:border-[#BAAEA0] transition-colors"
               >
-                {/* Unboxed Metadata Line with typographic separators */}
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono uppercase tracking-wider text-[#786F62] mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-[#1C1917]">Week {lesson.week}</span>
-                    <span aria-hidden="true">·</span>
-                    <span>{lesson.subjectName}</span>
-                    <span aria-hidden="true">·</span>
-                    <span>{lesson.durationMinutes}</span>
-                    {lesson.isRevision && (
-                      <>
-                        <span aria-hidden="true">·</span>
-                        <span className="text-[#9A3412] font-semibold">Revision Topic</span>
-                      </>
+                    {scope.weekNumber != null && (
+                      <span className="font-semibold text-[#1C1917]">Week {scope.weekNumber}</span>
                     )}
+                    {scope.weekNumber != null && <span aria-hidden="true">·</span>}
+                    <span>{subjectName}</span>
+                    <span aria-hidden="true">·</span>
+                    <span>{lesson.durationMinutes} min</span>
                   </div>
 
-                  {/* Status Indicator */}
                   <div className="flex items-center gap-1 text-[11px]">
                     {isInProgress && (
                       <span className="text-[#9A3412] font-semibold flex items-center gap-1">
@@ -186,12 +181,13 @@ export const LessonLibraryView: React.FC<LessonLibraryViewProps> = ({ onOpenNewL
                   </div>
                 </div>
 
-                {/* Topic Title */}
-                <h3 className="text-xl sm:text-2xl font-serif font-medium text-[#1C1917] tracking-tight mb-2">
-                  {lesson.topic}
+                <h3 className="text-xl sm:text-2xl font-serif font-medium text-[#1C1917] tracking-tight mb-1">
+                  {lesson.title}
                 </h3>
+                {scope.topic && scope.topic.title !== lesson.title && (
+                  <p className="text-xs text-[#786F62] italic mb-2">Topic: {scope.topic.title}</p>
+                )}
 
-                {/* Objectives brief summary */}
                 <div className="text-xs text-[#574D42] mb-4 space-y-1">
                   <span className="font-semibold text-[#1C1917]">Objectives preview:</span>
                   <ul className="list-disc list-inside space-y-0.5 text-[#443E37]">
@@ -201,23 +197,21 @@ export const LessonLibraryView: React.FC<LessonLibraryViewProps> = ({ onOpenNewL
                   </ul>
                 </div>
 
-                {/* Bottom Action Ribbon with Resume Current Position (Section 14) */}
                 <div className="pt-3 border-t border-[#EAE1CD] flex flex-wrap items-center justify-between gap-3">
-                  {/* Where was I preview */}
                   <div className="flex items-center gap-2 text-xs">
                     {isInProgress && currentSec ? (
                       <span className="text-[#9A3412] font-medium flex items-center gap-1">
                         <span className="font-mono font-bold">Resume point:</span>
-                        <span>{currentSec.sectionNumber}. {currentSec.title}</span>
+                        <span>{currentSec.title}</span>
                       </span>
                     ) : (
                       <span className="text-[#786F62]">
-                        {lesson.sections.length} instructional sections · Student note ready
+                        {lesson.sections.length} instructional sections
+                        {lesson.studentNotes ? ' · Student note ready' : ''}
                       </span>
                     )}
                   </div>
 
-                  {/* Actions */}
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => selectLesson(lesson.id)}

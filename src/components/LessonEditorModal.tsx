@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useLesson } from '../context/LessonContext';
-import { Lesson, LessonSection } from '../types/lesson';
-import { X, Plus, Trash2, Save, FileText } from 'lucide-react';
+import { Lesson } from '../types/lesson';
+import { X, Save } from 'lucide-react';
 
 interface LessonEditorModalProps {
   isOpen: boolean;
@@ -14,34 +14,31 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
   onClose,
   existingLesson,
 }) => {
-  const { classes, subjects, saveLesson } = useLesson();
+  const { classes, subjects, sessions, weeks, topics, saveLesson } = useLesson();
 
-  const [classId, setClassId] = useState(existingLesson?.classId || 'class-jss3');
-  const [subjectId, setSubjectId] = useState(existingLesson?.subjectId || 'sub-jss3-dt');
-  const [week, setWeek] = useState(existingLesson?.week || 5);
-  const [topic, setTopic] = useState(existingLesson?.topic || '');
-  const [duration, setDuration] = useState(existingLesson?.durationMinutes || '40–45 minutes');
-  const [isRevision, setIsRevision] = useState(existingLesson?.isRevision || false);
+  const [classId, setClassId] = useState('class-jss3');
+  const [subjectId, setSubjectId] = useState('sub-jss3-dt');
+  const [weekNumber, setWeekNumber] = useState(5);
+  const [topicTitle, setTopicTitle] = useState('');
+  const [title, setTitle] = useState(existingLesson?.title || '');
+  const [duration, setDuration] = useState(existingLesson?.durationMinutes ?? 45);
   const [objectivesText, setObjectivesText] = useState(
     existingLesson?.learningObjectives.join('\n') ||
-      'Explain the core concept.\nDemonstrate working example.\nPerform student check.'
+      'Explain the core concept.\nDemonstrate working example.\nPerform student check.',
   );
   const [materialsText, setMaterialsText] = useState(
-    existingLesson?.materials.join('\n') || 'Whiteboard, Markers, Demonstration Kit'
+    existingLesson?.materials.join('\n') || 'Whiteboard, Markers, Demonstration Kit',
   );
-
-  // Hook and first teaching step
-  const [hookGuidance, setHookGuidance] = useState(
-    existingLesson?.sections[0]?.teacherGuidance.join('\n') ||
-      'Start with a quick riddle or real-world problem to hook student attention.'
+  const [priorKnowledge, setPriorKnowledge] = useState(existingLesson?.priorKnowledge || '');
+  const [teacherNotes, setTeacherNotes] = useState(existingLesson?.teacherNotes || '');
+  const [studentNotes, setStudentNotes] = useState(existingLesson?.studentNotes || '');
+  const [hookContent, setHookContent] = useState(
+    existingLesson?.sections[0]?.content ||
+      'Start with a quick riddle or real-world problem to hook student attention.',
   );
-  const [teachingGuidance, setTeachingGuidance] = useState(
-    existingLesson?.sections[2]?.teacherGuidance.join('\n') ||
-      'Explain key definitions clearly and write structured points on the board.'
-  );
-  const [studentNoteSnippet, setStudentNoteSnippet] = useState(
-    existingLesson?.studentNote?.takeawaySummary ||
-      'Key definition and summary for student exercise books.'
+  const [coreContent, setCoreContent] = useState(
+    existingLesson?.sections[1]?.content ||
+      'Explain key definitions clearly and write structured points on the board.',
   );
 
   if (!isOpen) return null;
@@ -49,13 +46,38 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
   const currentClass = classes.find((c) => c.id === classId) || classes[0];
   const classSubjects = subjects.filter((s) => s.classId === classId);
   const currentSubject = classSubjects.find((s) => s.id === subjectId) || classSubjects[0];
+  void currentClass;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!topic.trim()) {
-      alert('Please provide a lesson topic title.');
+    if (!title.trim()) {
+      alert('Please provide a lesson title.');
       return;
     }
+    if (!currentSubject) {
+      alert('Please select a subject.');
+      return;
+    }
+
+    const session = sessions.find((s) => s.subjectId === currentSubject.id);
+    const week = session
+      ? weeks.find((w) => w.sessionId === session.id && w.number === Number(weekNumber))
+      : undefined;
+    if (!week) {
+      alert('Could not find that week for the selected subject.');
+      return;
+    }
+
+    // Reuse an existing topic with the same title in this week, else create one.
+    const topicTitleFinal = topicTitle.trim() || title.trim();
+    const existingTopic = topics.find(
+      (t) => t.weekId === week.id && t.title.toLowerCase() === topicTitleFinal.toLowerCase(),
+    );
+    const topicId =
+      existingLesson?.topicId ?? existingTopic?.id ?? `topic-${Date.now().toString(36)}`;
+    const topicOrder =
+      existingTopic?.order ?? topics.filter((t) => t.weekId === week.id).length + 1;
+    void topicOrder;
 
     const objectives = objectivesText
       .split('\n')
@@ -66,107 +88,56 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
       .map((s) => s.trim())
       .filter(Boolean);
 
-    const newSections: LessonSection[] = existingLesson?.sections || [
+    const newSections = existingLesson?.sections ?? [
       {
-        id: 'sec-new-1',
-        sectionNumber: '1',
+        id: `sec-${Date.now().toString(36)}-1`,
         title: 'Set Induction / Hook',
-        suggestedDurationMinutes: 6,
-        teacherGuidance: hookGuidance.split('\n').filter(Boolean),
-        teacherQuote: 'Listen closely: can you spot the hidden mistake in this process?',
+        durationMinutes: 6,
+        content: hookContent,
+        teacherGuidance: hookContent,
       },
       {
-        id: 'sec-new-2',
-        sectionNumber: '2',
-        title: 'Introduction of Topic',
-        suggestedDurationMinutes: 2,
-        teacherGuidance: [`Introduce today's lesson: ${topic}. State the learning goals.`],
+        id: `sec-${Date.now().toString(36)}-2`,
+        title: 'Teaching / Core Concept',
+        durationMinutes: 25,
+        content: coreContent,
+        teacherGuidance: coreContent,
       },
       {
-        id: 'sec-new-3',
-        sectionNumber: '3',
-        title: 'Teaching / Core Concept Development',
-        suggestedDurationMinutes: 20,
-        teacherGuidance: teachingGuidance.split('\n').filter(Boolean),
-        isKeyTeachingPoint: true,
-        studentNoteSnippet: studentNoteSnippet,
-      },
-      {
-        id: 'sec-new-4',
-        sectionNumber: '4',
-        title: 'Student Notes',
-        suggestedDurationMinutes: 6,
-        teacherGuidance: ['Direct students to record the structured notebook notes.'],
-      },
-      {
-        id: 'sec-new-5',
-        sectionNumber: '5',
-        title: 'Evaluation',
-        suggestedDurationMinutes: 4,
-        teacherGuidance: ['Ask oral questions to evaluate student comprehension.'],
-      },
-      {
-        id: 'sec-new-6',
-        sectionNumber: '6',
-        title: 'Conclusion & Assignment',
-        suggestedDurationMinutes: 2,
-        teacherGuidance: ['Wrap up lesson and assign take-home exercises.'],
+        id: `sec-${Date.now().toString(36)}-3`,
+        title: 'Wrap-up & Check',
+        durationMinutes: 9,
+        content: 'Recap key points, ask oral checks, preview next lesson.',
+        teacherGuidance: 'Recap, evaluate, preview next week.',
       },
     ];
 
     const lessonToSave: Lesson = {
-      id: existingLesson?.id || `lesson-${classId}-${Date.now()}`,
-      classId: classId,
-      className: currentClass.name,
-      subjectId: subjectId,
-      subjectName: currentSubject?.name || 'General Subject',
-      week: Number(week),
-      topic: topic.trim(),
-      durationMinutes: duration,
-      isRevision: isRevision,
+      id: existingLesson?.id || `lesson-${Date.now().toString(36)}`,
+      topicId,
+      title: title.trim(),
+      durationMinutes: Number(duration) || 45,
       learningObjectives: objectives,
-      materials: materials,
+      materials,
+      priorKnowledge: priorKnowledge.trim() || undefined,
+      teacherNotes: teacherNotes.trim() || undefined,
+      studentNotes: studentNotes.trim() || undefined,
       sections: newSections,
-      studentNote: existingLesson?.studentNote || {
-        subject: currentSubject?.name || 'General Subject',
-        topic: topic.trim(),
-        className: currentClass.name,
-        term: 'First Term',
-        week: Number(week),
-        sections: [
-          {
-            heading: '1. Topic Overview',
-            content: studentNoteSnippet,
-          },
-        ],
-        takeawaySummary: studentNoteSnippet,
-      },
-      evaluationQuestions: existingLesson?.evaluationQuestions || [
-        {
-          id: 'eval-new-1',
-          questionNumber: 1,
-          question: `What is the main definition of ${topic}?`,
-          expectedAnswer: 'Clear understanding of core concept covered in class.',
-          type: 'oral',
-        },
-      ],
-      assignment: existingLesson?.assignment || {
-        title: `${topic} Review Assignment`,
-        instructions: 'Answer questions 1 to 3 in your homework exercise book.',
-      },
+      evaluation: existingLesson?.evaluation ?? [],
     };
 
-    saveLesson(lessonToSave);
+    // If this is a brand-new topic title, the context will create the topic
+    // record in the target week to keep Week → Topic → Lesson reachable.
+    saveLesson(lessonToSave, { weekId: week.id });
     onClose();
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
-      <div 
+      <div
         className="w-full max-w-2xl bg-[#FAF8F3] border border-[#DDD3BF] rounded-lg shadow-xl overflow-hidden flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 bg-[#F2ECDD] border-b border-[#E2D8C3]">
           <div>
             <h3 className="text-base font-serif font-medium text-[#1C1917]">
@@ -185,7 +156,6 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
           </button>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto flex-1 text-xs sm:text-sm">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
@@ -228,52 +198,51 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
                 type="number"
                 min="1"
                 max="14"
-                value={week}
-                onChange={(e) => setWeek(Number(e.target.value))}
+                value={weekNumber}
+                onChange={(e) => setWeekNumber(Number(e.target.value))}
                 className="w-full p-2 bg-[#FAF7F0] border border-[#DDD3BF] rounded text-[#1C1917]"
               />
             </div>
           </div>
 
           <div>
-            <label className="font-mono text-xs text-[#786F62] block mb-1">Lesson Topic Title:</label>
+            <label className="font-mono text-xs text-[#786F62] block mb-1">Topic (planning label):</label>
             <input
               type="text"
-              placeholder="e.g. Algorithms and Flowcharts, Chemical Equations..."
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
+              placeholder="e.g. Algorithms and Flowcharts"
+              value={topicTitle}
+              onChange={(e) => setTopicTitle(e.target.value)}
+              className="w-full p-2 bg-[#FAF7F0] border border-[#DDD3BF] rounded text-[#1C1917]"
+            />
+          </div>
+
+          <div>
+            <label className="font-mono text-xs text-[#786F62] block mb-1">Lesson Title:</label>
+            <input
+              type="text"
+              placeholder="e.g. Introduction to Sorting"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
               className="w-full p-2 bg-[#FAF7F0] border border-[#DDD3BF] rounded text-[#1C1917] font-medium"
               required
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="font-mono text-xs text-[#786F62] block mb-1">Duration:</label>
-              <input
-                type="text"
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-                className="w-full p-2 bg-[#FAF7F0] border border-[#DDD3BF] rounded text-[#1C1917]"
-              />
-            </div>
-
-            <div className="flex items-center pt-5">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isRevision}
-                  onChange={(e) => setIsRevision(e.target.checked)}
-                  className="w-4 h-4 rounded text-[#9A3412]"
-                />
-                <span className="text-xs text-[#1C1917] font-medium">Mark as Revision of Prior Work</span>
-              </label>
-            </div>
+          <div>
+            <label className="font-mono text-xs text-[#786F62] block mb-1">Duration (minutes):</label>
+            <input
+              type="number"
+              min="1"
+              max="180"
+              value={duration}
+              onChange={(e) => setDuration(Number(e.target.value))}
+              className="w-full p-2 bg-[#FAF7F0] border border-[#DDD3BF] rounded text-[#1C1917]"
+            />
           </div>
 
           <div>
             <label className="font-mono text-xs text-[#786F62] block mb-1">
-              Learning Objectives (One target per line):
+              Learning Objectives (one per line):
             </label>
             <textarea
               rows={3}
@@ -285,7 +254,7 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
 
           <div>
             <label className="font-mono text-xs text-[#786F62] block mb-1">
-              Materials & Resources (One item per line):
+              Materials (one per line):
             </label>
             <textarea
               rows={2}
@@ -296,30 +265,55 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
           </div>
 
           <div>
-            <label className="font-mono text-xs text-[#786F62] block mb-1">
-              Set Induction / Hook Instructions:
-            </label>
+            <label className="font-mono text-xs text-[#786F62] block mb-1">Prior Knowledge:</label>
             <textarea
               rows={2}
-              value={hookGuidance}
-              onChange={(e) => setHookGuidance(e.target.value)}
+              value={priorKnowledge}
+              onChange={(e) => setPriorKnowledge(e.target.value)}
               className="w-full p-2 bg-[#FAF7F0] border border-[#DDD3BF] rounded text-[#1C1917] text-xs font-sans"
             />
           </div>
 
           <div>
-            <label className="font-mono text-xs text-[#786F62] block mb-1">
-              Core Student Note Takeaway:
-            </label>
+            <label className="font-mono text-xs text-[#786F62] block mb-1">Hook / Opening:</label>
             <textarea
               rows={2}
-              value={studentNoteSnippet}
-              onChange={(e) => setStudentNoteSnippet(e.target.value)}
+              value={hookContent}
+              onChange={(e) => setHookContent(e.target.value)}
               className="w-full p-2 bg-[#FAF7F0] border border-[#DDD3BF] rounded text-[#1C1917] text-xs font-sans"
             />
           </div>
 
-          {/* Buttons */}
+          <div>
+            <label className="font-mono text-xs text-[#786F62] block mb-1">Core Teaching Content:</label>
+            <textarea
+              rows={2}
+              value={coreContent}
+              onChange={(e) => setCoreContent(e.target.value)}
+              className="w-full p-2 bg-[#FAF7F0] border border-[#DDD3BF] rounded text-[#1C1917] text-xs font-sans"
+            />
+          </div>
+
+          <div>
+            <label className="font-mono text-xs text-[#786F62] block mb-1">Teacher Notes:</label>
+            <textarea
+              rows={2}
+              value={teacherNotes}
+              onChange={(e) => setTeacherNotes(e.target.value)}
+              className="w-full p-2 bg-[#FAF7F0] border border-[#DDD3BF] rounded text-[#1C1917] text-xs font-sans"
+            />
+          </div>
+
+          <div>
+            <label className="font-mono text-xs text-[#786F62] block mb-1">Student Notes:</label>
+            <textarea
+              rows={3}
+              value={studentNotes}
+              onChange={(e) => setStudentNotes(e.target.value)}
+              className="w-full p-2 bg-[#FAF7F0] border border-[#DDD3BF] rounded text-[#1C1917] text-xs font-sans"
+            />
+          </div>
+
           <div className="pt-4 border-t border-[#EAE1CD] flex items-center justify-end gap-2">
             <button
               type="button"

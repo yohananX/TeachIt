@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { useLesson } from '../context/LessonContext';
 import { LessonResource } from '../types/lesson';
 import { getFontSizeClass } from '../utils/theme';
+import { getLessonScope } from '../utils/curriculum';
 import { StudentNoteBlock } from './StudentNoteBlock';
 import {
   Clock,
@@ -38,6 +39,11 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
     setCurrentSection,
     toggleSectionCompleted,
     preferences,
+    topics,
+    weeks,
+    sessions,
+    subjects,
+    classes,
   } = useLesson();
 
   const fontClasses = getFontSizeClass(preferences.fontSize);
@@ -51,46 +57,45 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
     );
   }
 
+  const scope = getLessonScope(activeLesson.topicId, topics, weeks, sessions);
+  const subject = subjects.find((s) => s.id === scope.subjectId);
+  const cls = subject ? classes.find((c) => c.id === subject.classId) : undefined;
+
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 pb-32">
-      {/* ─────────────────────────────────────────────────────────────
-          1. LESSON HEADER / OVERVIEW (Section 8)
-      ───────────────────────────────────────────────────────────── */}
+      {/* 1. LESSON HEADER / OVERVIEW */}
       <section
         id="lesson-overview"
         ref={(el) => registerScrollTarget('lesson-overview', el)}
         className="mb-10 pb-8 border-b border-[#E2D8C3]"
       >
-        {/* Unboxed Metadata Line with typographic separators (anti-slop rule) */}
         <div className="flex flex-wrap items-center gap-2 text-xs font-mono uppercase tracking-wider text-[#786F62] mb-3">
-          <span>{activeLesson.className}</span>
-          <span aria-hidden="true">·</span>
-          <span>{activeLesson.subjectName}</span>
-          <span aria-hidden="true">·</span>
-          <span>Week {activeLesson.week}</span>
+          {cls && <span>{cls.name}</span>}
+          {cls && <span aria-hidden="true">·</span>}
+          {subject && <span>{subject.name}</span>}
+          {subject && <span aria-hidden="true">·</span>}
+          {scope.weekNumber != null && <span>Week {scope.weekNumber}</span>}
           <span aria-hidden="true">·</span>
           <span className="flex items-center gap-1 font-semibold text-[#1C1917]">
             <Clock className="w-3 h-3 text-[#9A3412]" />
-            {activeLesson.durationMinutes}
+            {activeLesson.durationMinutes} min
           </span>
-          {activeLesson.isRevision && (
-            <>
-              <span aria-hidden="true">·</span>
-              <span className="text-[#9A3412] font-semibold">
-                Revision of JSS 2
-              </span>
-            </>
-          )}
         </div>
 
-        {/* Title in Newsreader editorial serif */}
-        <h1 className={`${fontClasses.heading1} text-[#1C1917] tracking-tight leading-tight mb-4`}>
-          {activeLesson.topic}
+        <h1 className={`${fontClasses.heading1} text-[#1C1917] tracking-tight leading-tight mb-2`}>
+          {activeLesson.title}
         </h1>
 
-        {activeLesson.revisionReference && (
-          <p className="text-xs text-[#786F62] italic mb-6">
-            Curriculum context: {activeLesson.revisionReference}
+        {scope.topic && (
+          <p className="text-xs text-[#786F62] italic mb-4">
+            Topic: {scope.topic.title}
+          </p>
+        )}
+
+        {activeLesson.priorKnowledge && (
+          <p className="text-xs text-[#574D42] mb-4 pl-3 border-l-2 border-[#1E3A8A]/40">
+            <span className="font-semibold text-[#1C1917]">Prior knowledge: </span>
+            {activeLesson.priorKnowledge}
           </p>
         )}
 
@@ -126,7 +131,7 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
           </ul>
         </div>
 
-        {/* Materials / Resources Checklist */}
+        {/* Materials */}
         <div
           id="lesson-materials"
           ref={(el) => registerScrollTarget('lesson-materials', el)}
@@ -145,11 +150,18 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
             ))}
           </div>
         </div>
+
+        {activeLesson.teacherNotes && (
+          <div className="mt-6 p-3 bg-[#F5EFE3] border-l-2 border-[#78350F] text-xs text-[#443E37]">
+            <span className="font-semibold text-[#78350F] text-[11px] uppercase tracking-wider block mb-1">
+              Teacher notes
+            </span>
+            <p className="leading-relaxed whitespace-pre-line">{activeLesson.teacherNotes}</p>
+          </div>
+        )}
       </section>
 
-      {/* ─────────────────────────────────────────────────────────────
-          2. LESSON PROCEDURE (Sections 9–11, 15, 20)
-      ───────────────────────────────────────────────────────────── */}
+      {/* 2. LESSON PROCEDURE */}
       <section className="space-y-12">
         <div className="flex items-center justify-between pb-3 border-b border-[#E2D8C3]">
           <div>
@@ -170,7 +182,6 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
           </button>
         </div>
 
-        {/* Iterate through sections */}
         {activeLesson.sections.map((section, index) => {
           const isCurrent = section.id === currentSectionId;
           const isCompleted = activeLesson.completedSectionIds.includes(section.id);
@@ -189,7 +200,6 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
                   : 'bg-transparent border-[#E3DAC9] hover:border-[#C4B7A2]'
               }`}
             >
-              {/* CURRENT POSITION IDENTIFIER: calm, persistent, readable at a glance */}
               {isCurrent && (
                 <div className="mb-3 flex items-center justify-between gap-2 text-[11px] font-mono font-bold text-[#9A3412] tracking-wider uppercase">
                   <span className="flex items-center gap-1.5">
@@ -202,17 +212,11 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
                 </div>
               )}
 
-              {/* Section Header */}
               <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2 mb-4">
                 <div className="min-w-0">
-                  {section.groupTitle && (
-                    <span className="text-[11px] font-mono uppercase tracking-widest text-[#786F62]">
-                      {section.groupTitle}
-                    </span>
-                  )}
                   <div className="flex items-baseline gap-2.5">
                     <span className="text-base sm:text-lg font-mono font-bold text-[#9A3412]">
-                      {section.sectionNumber}.
+                      {index + 1}.
                     </span>
                     <h3 className={`${fontClasses.heading2} text-[#1C1917]`}>
                       {section.title}
@@ -220,16 +224,14 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
                   </div>
                 </div>
 
-                {/* Timing & completion actions */}
                 <div className="flex items-center gap-1.5 shrink-0 ml-auto pt-0.5">
-                  {section.suggestedDurationMinutes && preferences.showTimingGuidance && (
+                  {section.durationMinutes != null && preferences.showTimingGuidance && (
                     <span className="text-xs font-mono text-[#786F62] bg-[#EDE5D5] px-2 py-1 rounded tabular-nums flex items-center gap-1">
                       <Clock className="w-3 h-3 text-[#A89E8F]" />
-                      {section.suggestedDurationMinutes} min
+                      {section.durationMinutes} min
                     </span>
                   )}
 
-                  {/* Mark as Current button */}
                   {!isCurrent && (
                     <button
                       onClick={() => setCurrentSection(section.id)}
@@ -240,7 +242,6 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
                     </button>
                   )}
 
-                  {/* Completed Checkbox */}
                   <button
                     onClick={() => toggleSectionCompleted(section.id)}
                     className="flex items-center justify-center min-h-[32px] min-w-[32px] p-2 -m-1 text-[#8C8375] hover:text-emerald-700 hover:bg-[#EAE1CD] rounded transition-colors"
@@ -256,102 +257,28 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
                 </div>
               </div>
 
-              {/* ───────────────────────────────────────────────────
-                  TEACHER GUIDANCE: the core teaching content, unboxed
-              ─────────────────────────────────────────────────── */}
+              {/* Main content */}
+              <div className={`space-y-2.5 text-[#292524] ${fontClasses.body}`}>
+                <p className="leading-relaxed whitespace-pre-line">{section.content}</p>
+              </div>
+
+              {/* Teacher guidance */}
               <div className="my-4 pl-3 sm:pl-4 border-l-2 border-[#E0D5BE]">
                 <span className="text-[11px] font-mono uppercase tracking-wider text-[#78350F] font-semibold flex items-center gap-1.5 mb-2">
                   <Eye className="w-3 h-3 text-[#78350F]" />
                   Teacher Guidance
                 </span>
-
-                <div className={`space-y-2.5 text-[#292524] ${fontClasses.body}`}>
-                  {section.teacherGuidance.map((step, idx) => (
-                    <p key={idx} className="leading-relaxed">
-                      {step}
-                    </p>
-                  ))}
-                </div>
-
-                {/* Spoken Quote / Spoken Hook Prompt */}
-                {section.teacherQuote && (
-                  <div className="mt-3.5 pt-3 border-t border-[#EAE0CB]">
-                    <div className="flex items-start gap-2">
-                      <MessageSquareQuote className="w-4 h-4 text-[#9A3412] shrink-0 mt-0.5" />
-                      <div className="min-w-0">
-                        <span className="text-[10px] font-mono uppercase text-[#786F62] tracking-wider block mb-0.5">
-                          Say to class / Suggested prompt:
-                        </span>
-                        <blockquote className={`${fontClasses.quote} text-[#1C1917] font-serif`}>
-                          “{section.teacherQuote}”
-                        </blockquote>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <p className={`text-[#292524] leading-relaxed whitespace-pre-line ${fontClasses.body}`}>
+                  {section.teacherGuidance}
+                </p>
               </div>
 
-              {/* Key Teaching Points (if any) */}
-              {section.keyPoints && section.keyPoints.length > 0 && (
+              {section.activity && (
                 <div className="my-3 pl-3 border-l border-[#DDD4C1] text-xs text-[#574D42]">
                   <span className="font-semibold text-[#1C1917] block mb-1">
-                    Key Concepts to Emphasize:
+                    Activity:
                   </span>
-                  <ul className="list-disc list-inside space-y-0.5">
-                    {section.keyPoints.map((kp, k) => (
-                      <li key={k}>{kp}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* ───────────────────────────────────────────────────
-                  STUDENT NOTE SNIPPET (Section 15 & 16)
-              ─────────────────────────────────────────────────── */}
-              {section.studentNoteSnippet && (
-                <div className="my-4 pl-3 sm:pl-4 border-l-2 border-[#1E3A8A]">
-                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-1.5">
-                    <span className="text-[11px] font-mono uppercase tracking-wider text-[#1E3A8A] font-semibold flex items-center gap-1.5">
-                      <BookOpen className="w-3 h-3 text-[#1E3A8A]" />
-                      Student Note Material
-                    </span>
-                    <button
-                      onClick={() => onJumpToAnchor('student-note')}
-                      className="text-[11px] text-[#1E3A8A] hover:underline font-medium min-h-[32px] px-1 -mx-1"
-                    >
-                      Jump to student note →
-                    </button>
-                  </div>
-                  <p className="text-xs sm:text-sm text-[#1C1917] leading-relaxed font-serif">
-                    {section.studentNoteSnippet}
-                  </p>
-                </div>
-              )}
-
-              {/* ───────────────────────────────────────────────────
-                  INLINE EDUCATIONAL RESOURCES (Section 17 & 18)
-              ─────────────────────────────────────────────────── */}
-              {section.resources && section.resources.length > 0 && (
-                <div className="mt-4 pt-3 border-t border-[#E5DAC4]">
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-[#786F62] block mb-2">
-                    Attached lesson materials:
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    {section.resources.map((res) => (
-                      <button
-                        key={res.id}
-                        onClick={() => onOpenResource(res)}
-                        className="inline-flex items-center gap-2 min-h-[40px] px-3 py-2 bg-[#EFE8D8] hover:bg-[#E4DBC8] text-[#1C1917] text-xs rounded border border-[#DDD3BF] transition-colors"
-                      >
-                        {res.type === 'image' && <ImageIcon className="w-3.5 h-3.5 text-[#9A3412]" />}
-                        {res.type === 'link' && <ExternalLink className="w-3.5 h-3.5 text-[#1E3A8A]" />}
-                        {res.type === 'video' && <ExternalLink className="w-3.5 h-3.5 text-[#9A3412]" />}
-                        <span className="font-medium truncate max-w-[200px] sm:max-w-[260px]">
-                          {res.title}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
+                  <p className="leading-relaxed">{section.activity}</p>
                 </div>
               )}
             </article>
@@ -359,9 +286,32 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
         })}
       </section>
 
-      {/* ─────────────────────────────────────────────────────────────
-          3. EVALUATION SECTION (Questions with Revealable Answers)
-      ───────────────────────────────────────────────────────────── */}
+      {/* Lesson-wide resources */}
+      {activeLesson.resources && activeLesson.resources.length > 0 && (
+        <section className="mt-12 pt-6 border-t border-[#E2D8C3]">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-[#786F62] block mb-2">
+            Attached lesson materials:
+          </span>
+          <div className="flex flex-wrap gap-2">
+            {activeLesson.resources.map((res) => (
+              <button
+                key={res.id}
+                onClick={() => onOpenResource(res)}
+                className="inline-flex items-center gap-2 min-h-[40px] px-3 py-2 bg-[#EFE8D8] hover:bg-[#E4DBC8] text-[#1C1917] text-xs rounded border border-[#DDD3BF] transition-colors"
+              >
+                {res.type === 'image' && <ImageIcon className="w-3.5 h-3.5 text-[#9A3412]" />}
+                {res.type === 'link' && <ExternalLink className="w-3.5 h-3.5 text-[#1E3A8A]" />}
+                {res.type === 'video' && <ExternalLink className="w-3.5 h-3.5 text-[#9A3412]" />}
+                <span className="font-medium truncate max-w-[200px] sm:max-w-[260px]">
+                  {res.title}
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 3. EVALUATION */}
       <section
         id="lesson-evaluation"
         ref={(el) => registerScrollTarget('lesson-evaluation', el)}
@@ -376,81 +326,44 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
               Classroom Evaluation
             </h2>
           </div>
-          <span className="text-xs font-mono text-[#786F62]">3–4 minutes</span>
         </div>
 
-        <div className="space-y-4">
-          {activeLesson.evaluationQuestions.map((q) => (
-            <div
-              key={q.id}
-              className="pb-4 border-b border-[#EAE1CD] last:border-0 last:pb-0"
-            >
-              <div className="flex items-start gap-2.5">
-                <span className="text-xs font-mono font-bold text-[#9A3412] mt-0.5 shrink-0">
-                  Q{q.questionNumber}.
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                    <p className="text-sm font-medium text-[#1C1917]">{q.question}</p>
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-[#786F62]">
-                      {q.type}
-                    </span>
+        {activeLesson.evaluation.length === 0 ? (
+          <p className="text-xs text-[#8C8375] italic">No evaluation questions yet.</p>
+        ) : (
+          <div className="space-y-4">
+            {activeLesson.evaluation.map((q) => (
+              <div key={q.id} className="pb-4 border-b border-[#EAE1CD] last:border-0 last:pb-0">
+                <div className="flex items-start gap-2.5">
+                  <span className="text-xs font-mono font-bold text-[#9A3412] mt-0.5 shrink-0">
+                    Q{q.questionNumber}.
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                      <p className="text-sm font-medium text-[#1C1917]">{q.question}</p>
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-[#786F62]">
+                        {q.type}
+                      </span>
+                    </div>
+                    {q.expectedAnswer && (
+                      <details className="mt-2 text-xs text-[#574D42] group">
+                        <summary className="cursor-pointer text-[#78350F] hover:underline font-mono text-[11px] select-none min-h-[32px] flex items-center">
+                          Show Expected Answer & Marking Guide
+                        </summary>
+                        <p className="mt-1 mb-1 pl-3 border-l-2 border-[#E0D5BE] text-[#292524] leading-relaxed">
+                          {q.expectedAnswer}
+                        </p>
+                      </details>
+                    )}
                   </div>
-                  {q.expectedAnswer && (
-                    <details className="mt-2 text-xs text-[#574D42] group">
-                      <summary className="cursor-pointer text-[#78350F] hover:underline font-mono text-[11px] select-none min-h-[32px] flex items-center">
-                        Show Expected Answer & Marking Guide
-                      </summary>
-                      <p className="mt-1 mb-1 pl-3 border-l-2 border-[#E0D5BE] text-[#292524] leading-relaxed">
-                        {q.expectedAnswer}
-                      </p>
-                    </details>
-                  )}
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ─────────────────────────────────────────────────────────────
-          4. TAKE-HOME ASSIGNMENT
-      ───────────────────────────────────────────────────────────── */}
-      <section
-        id="lesson-assignment"
-        ref={(el) => registerScrollTarget('lesson-assignment', el)}
-        className="mt-12 pt-6 border-t-2 border-[#DDD3BF]"
-      >
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-mono uppercase tracking-wider text-[#78350F] font-semibold flex items-center gap-1.5">
-            <FileCheck2 className="w-4 h-4 text-[#78350F]" />
-            Take-Home Homework Assignment
-          </span>
-          {activeLesson.assignment.submissionDeadline && (
-            <span className="text-xs text-[#786F62]">
-              Due: {activeLesson.assignment.submissionDeadline}
-            </span>
-          )}
-        </div>
-
-        <h3 className="text-base font-serif font-medium text-[#1C1917] mb-2">
-          {activeLesson.assignment.title}
-        </h3>
-
-        <p className="text-xs sm:text-sm text-[#443E37] whitespace-pre-line leading-relaxed mb-3">
-          {activeLesson.assignment.instructions}
-        </p>
-
-        {activeLesson.assignment.gradingCriteria && (
-          <div className="text-[11px] text-[#786F62] pt-2 border-t border-[#EAE1CD]">
-            <span className="font-semibold">Grading breakdown:</span> {activeLesson.assignment.gradingCriteria}
+            ))}
           </div>
         )}
       </section>
 
-      {/* ─────────────────────────────────────────────────────────────
-          5. STUDENT NOTE — part of this lesson, not a separate screen
-      ───────────────────────────────────────────────────────────── */}
+      {/* 4. STUDENT NOTE — part of this lesson, not a separate screen */}
       <section className="mt-16 pt-8 border-t border-[#E2D8C3]">
         <div className="flex flex-wrap items-end justify-between gap-2 mb-4">
           <div>
@@ -462,12 +375,20 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
           <span className="text-xs font-mono text-[#786F62]">Copy · Print · Present</span>
         </div>
 
-        <div
-          id="student-note"
-          ref={(el) => registerScrollTarget('student-note', el)}
-        >
+        <div id="student-note" ref={(el) => registerScrollTarget('student-note', el)}>
           <StudentNoteBlock />
         </div>
+
+        <button
+          onClick={() => onJumpToAnchor('student-note')}
+          className="hidden"
+          aria-hidden="true"
+          tabIndex={-1}
+        >
+          <BookOpen className="w-3 h-3" />
+          <MessageSquareQuote className="w-3 h-3" />
+          <FileCheck2 className="w-3 h-3" />
+        </button>
       </section>
     </div>
   );

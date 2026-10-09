@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLesson } from '../context/LessonContext';
 import { LessonStatus } from '../types/lesson';
-import { TOPIC_STATUS_LABEL, lessonsOfTopic, topicStatus } from '../utils/curriculum';
+import { TOPIC_STATUS_LABEL, getLessonScope, lessonsOfTopic, topicStatus } from '../utils/curriculum';
 import { ArrowRight, Play, Compass } from 'lucide-react';
 
 /**
@@ -51,9 +51,18 @@ export const TodayView: React.FC = () => {
   const statusText = (status: LessonStatus) =>
     status === 'taught' ? '✓ Taught' : status === 'in_progress' ? 'In progress' : 'Planned';
 
+  const activeScope = activeLesson
+    ? getLessonScope(activeLesson.topicId, topics, weeks, sessions)
+    : null;
+  const activeSubject = activeScope
+    ? subjects.find((s) => s.id === activeScope.subjectId)
+    : undefined;
+  const activeClass = activeSubject
+    ? classes.find((c) => c.id === activeSubject.classId)
+    : undefined;
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-8 py-8 pb-28">
-      {/* ── Header: who, where, when ─────────────────────────────────────── */}
       <div className="mb-8 pb-6 border-b border-[#E2D8C3]">
         <span className="text-xs font-mono uppercase tracking-widest text-[#786F62] block mb-1">
           Today
@@ -74,7 +83,6 @@ export const TodayView: React.FC = () => {
         </p>
       </div>
 
-      {/* ── Continue: the one action that matters ─────────────────────────── */}
       {activeLesson ? (
         <section className="bg-[#FAF8F3] border border-[#DDD3BF] border-l-[3px] border-l-[#9A3412] rounded-lg p-5 sm:p-6 mb-10">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
@@ -85,20 +93,19 @@ export const TodayView: React.FC = () => {
           </div>
 
           <h2 className="text-xl sm:text-2xl font-serif font-medium text-[#1C1917] tracking-tight mb-2">
-            {activeLesson.topic}
+            {activeLesson.title}
           </h2>
 
           <p className="text-xs font-mono uppercase tracking-wider text-[#786F62] mb-4">
-            {activeLesson.className} · {activeLesson.subjectName} · Week {activeLesson.week} ·{' '}
-            {activeLesson.durationMinutes}
+            {activeClass?.name} · {activeSubject?.name}
+            {activeScope?.weekNumber != null && <> · Week {activeScope.weekNumber}</>} ·{' '}
+            {activeLesson.durationMinutes} min
           </p>
 
           {currentSection && (
             <p className="text-sm text-[#9A3412] font-medium mb-5 flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-[#9A3412]" />
-              <span>
-                Currently at: {currentSection.sectionNumber}. {currentSection.title}
-              </span>
+              <span>Currently at: {currentSection.title}</span>
             </p>
           )}
 
@@ -126,7 +133,6 @@ export const TodayView: React.FC = () => {
         </section>
       )}
 
-      {/* ── This week: topics and where they stand ────────────────────────── */}
       <section>
         <div className="flex items-end justify-between pb-3 mb-4 border-b border-[#E2D8C3]">
           <div>
@@ -162,10 +168,7 @@ export const TodayView: React.FC = () => {
               const sectionCount = topicLessons.reduce((sum, l) => sum + l.sections.length, 0);
 
               return (
-                <div
-                  key={topic.id}
-                  className="py-4 flex flex-wrap items-start justify-between gap-3"
-                >
+                <div key={topic.id} className="py-4 flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <span
                       className={`text-xs font-mono uppercase tracking-wider font-semibold flex items-center gap-1.5 mb-1 ${

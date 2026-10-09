@@ -1,50 +1,45 @@
 export type LessonStatus = 'planned' | 'in_progress' | 'taught';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DOMAIN HIERARCHY: Teacher → Class → Subject → AcademicSession → Week → Topic → Lesson → LessonSection
+// TeachingProgress is kept separate from Lesson (describes delivery, not content).
+// ─────────────────────────────────────────────────────────────────────────────
+
 export interface ClassItem {
   id: string;
-  name: string; // e.g. "JSS 3", "JSS 2", "JSS 1", "SSS 1"
-  arm?: string; // e.g. "Gold", "A"
-  level: string;
-  subjectCount: number;
+  name: string;        // e.g. "JSS 3"
+  arm?: string;        // e.g. "Gold", "A"
+  level: string;       // e.g. "Junior Secondary 3"
 }
 
 export interface SubjectItem {
   id: string;
   classId: string;
-  name: string; // e.g. "Digital Technology"
-  code: string;
-  department: string;
+  name: string;        // e.g. "Digital Technology"
+  code: string;        // e.g. "DT-301"
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Curriculum hierarchy:
-//   Class → Subject → AcademicSession → Week → Topic → Lesson → LessonSection
-// TeachingProgress is kept separately from Lesson (it describes delivery, not
-// content) and is keyed by lessonId.
-// ─────────────────────────────────────────────────────────────────────────────
-
 export interface AcademicSession {
-  id: string; // 'sess-sub-jss3-dt-t1'
+  id: string;          // 'sess-sub-jss3-dt-t1'
   subjectId: string;
-  term: number; // 1..3
+  term: number;        // 1..3
   year?: number;
-  label: string; // 'First Term'
+  label: string;       // 'First Term'
   totalWeeks: number;
   currentWeek: number;
 }
 
 export interface Week {
-  id: string; // 'wk-sess-sub-jss3-dt-t1-01'
+  id: string;          // 'wk-sess-sub-jss3-dt-t1-01'
   sessionId: string;
-  number: number; // 1..totalWeeks
+  number: number;      // 1..totalWeeks
 }
 
 export interface Topic {
-  id: string; // 'topic-lesson-jss3-dt-w1'
-  weekId: string;
-  title: string; // planning label shown in the weekly plan
-  order: number; // position within the week
-  lessonIds: string[]; // a topic may span several lessons; empty = not prepared yet
+  id: string;          // 'topic-sub-jss3-dt-w1-01'
+  weekId: string;      // FK to Week
+  title: string;       // planning label shown in the weekly plan
+  order: number;       // position within the week
 }
 
 export interface TeachingProgress {
@@ -68,35 +63,11 @@ export interface LessonResource {
 
 export interface LessonSection {
   id: string;
-  sectionNumber: string; // "1", "2", "3A", "3B", "3C", "3D", "4", "5", "6"
-  groupTitle?: string; // e.g. "Teaching / Development"
   title: string;
-  suggestedDurationMinutes: number | string;
-  teacherGuidance: string[];
-  teacherQuote?: string; // Teacher spoken prompt or question
-  keyPoints?: string[];
-  studentNoteSnippet?: string;
-  resources?: LessonResource[];
-  isKeyTeachingPoint?: boolean;
-}
-
-export interface StudentNoteSection {
-  heading: string;
-  subheading?: string;
-  content: string;
-  bulletPoints?: string[];
-  examples?: string[];
-  formulaOrCode?: string;
-}
-
-export interface StudentNote {
-  subject: string;
-  topic: string;
-  className: string;
-  term: string;
-  week: number;
-  sections: StudentNoteSection[];
-  takeawaySummary: string;
+  durationMinutes: number;
+  content: string;           // main instructional content for this section
+  teacherGuidance: string;   // teacher-facing guidance/prompts
+  activity?: string;         // optional student activity description
 }
 
 export interface EvaluationQuestion {
@@ -107,38 +78,23 @@ export interface EvaluationQuestion {
   type: 'oral' | 'written' | 'activity';
 }
 
-export interface LessonAssignment {
-  title: string;
-  instructions: string;
-  submissionDeadline?: string;
-  gradingCriteria?: string;
-}
-
 export interface Lesson {
   id: string;
-  classId: string;
-  className: string;
-  subjectId: string;
-  subjectName: string;
-  week: number;
-  topic: string;
-  durationMinutes: string; // e.g. "40–45 minutes"
-  isRevision?: boolean;
-  revisionReference?: string;
+  topicId: string;           // FK to Topic
+  title: string;             // lesson title (distinct from topic title)
+  durationMinutes: number;   // total lesson duration in minutes
   learningObjectives: string[];
   materials: string[];
+  priorKnowledge?: string;   // what students should already know
+  teacherNotes?: string;     // lesson-level teacher notes
+  studentNotes?: string;     // simplified student note content (markdown/plain text)
+  resources?: LessonResource[]; // lesson-wide resources
   sections: LessonSection[];
-  studentNote: StudentNote;
-  evaluationQuestions: EvaluationQuestion[];
-  assignment: LessonAssignment;
+  evaluation: EvaluationQuestion[];
 }
 
-/**
- * Transitional read model handed to the UI: a Lesson joined with its
- * TeachingProgress. Components still render progress fields as if they lived on
- * the lesson; they are derived here so progress keeps a single source of truth.
- * Remove once the plan/teach views read TeachingProgress directly.
- */
+// Transitional read model for UI: Lesson joined with its TeachingProgress.
+// Remove once plan/teach views read TeachingProgress directly.
 export type LessonWithProgress = Lesson & {
   status: LessonStatus;
   currentSectionId: string | null;
@@ -152,6 +108,4 @@ export interface TeacherPreferences {
   fontSize: FontSizeSetting;
   paperMode: ThemePaperMode;
   showTimingGuidance: boolean;
-  autoSaveCurrentPosition: boolean;
-  audioFeedbackOnStep: boolean;
 }

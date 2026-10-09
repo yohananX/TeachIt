@@ -37,7 +37,7 @@ export const SectionNavModal: React.FC<SectionNavModalProps> = ({
               Lesson Procedure Index
             </div>
             <div className="text-base font-serif font-medium text-[#1C1917] truncate max-w-sm">
-              {activeLesson.topic}
+              {activeLesson.title}
             </div>
           </div>
           <button
@@ -127,22 +127,17 @@ export const SectionNavModal: React.FC<SectionNavModalProps> = ({
 
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="font-mono text-xs text-[#786F62]">{sec.sectionNumber}.</span>
+                      <span className="font-mono text-xs text-[#786F62]">{idx + 1}.</span>
                       <span className="text-sm font-medium text-[#1C1917] truncate">{sec.title}</span>
                     </div>
-                    {sec.groupTitle && (
-                      <div className="text-[11px] text-[#786F62] uppercase tracking-wider">
-                        {sec.groupTitle}
-                      </div>
-                    )}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  {sec.suggestedDurationMinutes && (
+                  {sec.durationMinutes != null && (
                     <span className="text-xs font-mono text-[#786F62] flex items-center gap-1">
                       <Clock className="w-3 h-3 text-[#A89E8F]" />
-                      {sec.suggestedDurationMinutes}m
+                      {sec.durationMinutes}m
                     </span>
                   )}
                   {isCurrent && (

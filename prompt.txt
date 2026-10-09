@@ -1,0 +1,506 @@
+You are working on the TeachIt repository.
+
+Repository:
+https://github.com/yohananX/TeachIt
+
+You are not being asked to blindly add features. Your job is to help restructure the existing prototype into a coherent V1 product based on the product definition below.
+
+PRODUCT DEFINITION
+
+TeachIt is a digital teaching workspace for teachers.
+
+Its core workflow is:
+
+Class → Subject → Academic Session → Week → Topic → Lesson → Teach → Mark Taught
+
+The core jobs are:
+
+1. Plan — know what to teach.
+2. Prepare — prepare/review the lesson.
+3. Teach — use the lesson while teaching.
+4. Track — record what has been taught.
+5. Continue — understand what comes next.
+6. Revise — see previously taught material relevant to the current lesson.
+
+TeachIt should feel like a well-organized digital teacher's notebook, not a generic SaaS dashboard, school-management system, or AI chatbot.
+
+The teacher remains in control.
+
+AI is NOT part of the immediate refactoring task.
+
+IMPORTANT WORKING RULE
+
+Do NOT attempt to rewrite the entire repository in one operation.
+
+Work in explicit phases.
+
+For each phase:
+
+1. Inspect the current implementation.
+2. Explain what you found.
+3. Identify what should be kept, merged, simplified, moved, or removed.
+4. Propose the smallest reasonable change.
+5. Wait for confirmation before making large architectural changes.
+6. Implement the approved change.
+7. Run/build/test the project.
+8. Report exactly what changed and whether anything broke.
+9. Commit the work with a clear Git commit message when appropriate.
+
+Do not create speculative features.
+
+Do not redesign parts of the application merely because you personally prefer another implementation.
+
+Preserve useful existing work.
+
+CURRENT PRODUCT DIRECTION
+
+The primary experience should become:
+
+PLAN
+↓
+Week
+↓
+Topic
+↓
+Lesson
+↓
+Teach
+
+Progress is attached to the teaching workflow.
+
+The application should not have multiple competing ways of understanding the curriculum.
+
+PHASE 0 — REPOSITORY AUDIT
+
+Before modifying anything, inspect the entire repository.
+
+Pay particular attention to:
+
+- application entry points
+- routing
+- components
+- contexts/state management
+- lesson types
+- curriculum data
+- styling/theme system
+- package.json
+- existing API/backend code, if any
+- data persistence
+- reusable components
+- dead/unused code
+
+Known important areas include components such as:
+
+- WeeklyPlannerView
+- LessonLibraryView
+- LessonEditorModal
+- LessonProcedureView
+- StudentNotebookView
+- PositionRibbon
+- SectionNavModal
+- ResourceViewerModal
+- PreferencesModal
+- LessonContext
+- lesson types
+- initial curriculum data
+
+Do not assume these files still have exactly the same structure. Inspect the current repository.
+
+At the end of Phase 0, produce:
+
+1. Current architecture diagram.
+2. Current user-flow diagram.
+3. Current data model.
+4. Current screen inventory.
+5. Component dependency overview.
+6. What is already aligned with the TeachIt product.
+7. What is over-engineered.
+8. What is duplicated.
+9. What is missing.
+10. What should be kept.
+11. What should be simplified.
+12. What should be postponed.
+13. Recommended refactoring order.
+
+DO NOT MODIFY CODE IN PHASE 0.
+
+PHASE 1 — ESTABLISH THE DOMAIN MODEL
+
+Before changing the UI significantly, establish these concepts clearly:
+
+Teacher
+Class
+Subject
+Academic Session
+Week
+Topic
+Lesson
+Lesson Section
+Resource
+Teaching Progress
+
+The fundamental hierarchy should be:
+
+Teacher
+→ Class
+→ Subject
+→ Academic Session
+→ Week
+→ Topic
+→ Lesson
+→ Lesson Sections
+
+Do not blindly copy the existing TypeScript types.
+
+Compare the current model against this domain model.
+
+Identify mismatches such as:
+
+- lessons being used where topics should exist,
+- weekly planning being mixed with lesson data,
+- UI state being mixed with persistent data,
+- curriculum data being tightly coupled to components.
+
+Propose the minimum changes needed.
+
+Do not implement until the model is clear.
+
+PHASE 2 — SIMPLIFY THE INFORMATION ARCHITECTURE
+
+The primary navigation should conceptually revolve around:
+
+1. Home / Today
+2. Plan
+3. Lesson / Teaching Mode
+4. Settings
+
+Do not create unnecessary top-level destinations.
+
+Specifically evaluate:
+
+- WeeklyPlannerView
+- LessonLibraryView
+- StudentNotebookView
+
+The desired direction is:
+
+Class
+→ Subject
+→ Week
+→ Topic
+→ Lesson
+
+The Lesson Library may remain as a secondary utility if it provides real value, but it must not compete with the weekly curriculum as the primary mental model.
+
+StudentNotebookView should NOT be treated as a separate student product or major application mode in V1.
+
+Student notes should instead be part of the lesson.
+
+PHASE 3 — SIMPLIFY THE LESSON MODEL
+
+A V1 lesson should support approximately:
+
+Lesson
+
+- title
+- duration
+- objectives
+- materials
+- prior knowledge
+- sections
+- teacher notes
+- student notes
+- resources
+- evaluation
+- teaching status
+
+A lesson section should support approximately:
+
+LessonSection
+
+- title
+- duration
+- content
+- teacher guidance
+- activity, where relevant
+
+Do not add unnecessary educational metadata.
+
+The goal is to make lessons useful both for preparation and actual classroom teaching.
+
+PHASE 4 — REFACTOR THE CURRICULUM DATA
+
+The current prototype contains substantial hardcoded curriculum data.
+
+Do not delete it.
+
+First separate:
+
+DOMAIN DATA
+from
+UI COMPONENTS.
+
+Create a clean data/repository abstraction so the UI does not directly depend on a huge curriculum file.
+
+For example, conceptually:
+
+lessonRepository.getClasses()
+lessonRepository.getSubjects()
+lessonRepository.getWeeks()
+lessonRepository.getTopics()
+lessonRepository.getLesson()
+lessonRepository.updateLesson()
+lessonRepository.updateProgress()
+
+For now, the repository may use local/mock data.
+
+Do NOT immediately build the entire backend.
+
+The goal is to make the eventual transition to an API/PostgreSQL backend clean.
+
+PHASE 5 — REWORK THE CORE USER FLOW
+
+Implement and verify this exact flow:
+
+1. Open TeachIt.
+2. Select a class.
+3. Select a subject.
+4. See the academic session.
+5. See the current week.
+6. See the topics for that week.
+7. See topic status.
+8. Select a topic.
+9. Open its lesson.
+10. Review lesson content.
+11. Enter teaching mode.
+12. Navigate through lesson sections.
+13. Mark the lesson/topic as taught.
+14. Return to the weekly plan.
+15. See the updated progress.
+16. See the previously taught material available for revision/context.
+
+This is the most important workflow in the application.
+
+Do not add unrelated features until this workflow works cleanly.
+
+PHASE 6 — TEACHING MODE
+
+Treat LessonProcedureView, PositionRibbon, SectionNavModal and related components as candidates for the core teaching experience.
+
+The teaching experience should prioritize:
+
+- readability
+- clear hierarchy
+- section navigation
+- current position
+- teacher guidance
+- student notes
+- resources
+- font-size control
+- minimal distraction
+
+The teacher should be able to scroll freely.
+
+Do not force a presentation-style sequence.
+
+Preserve useful existing functionality where possible.
+
+Do not redesign the entire visual system unless necessary.
+
+PHASE 7 — SIMPLIFY SETTINGS
+
+Keep settings minimal.
+
+Initially prioritize:
+
+- reading/font size
+- basic appearance/theme
+
+Do not expand the settings system with unnecessary customization.
+
+Keep the notebook/page visual language.
+
+PHASE 8 — STATE MANAGEMENT CLEANUP
+
+Inspect LessonContext.
+
+Separate:
+
+PERSISTENT/SERVER DATA
+
+from:
+
+TEMPORARY UI STATE.
+
+Persistent data includes:
+
+- classes
+- subjects
+- sessions
+- weeks
+- topics
+- lessons
+- resources
+- progress
+
+UI state includes things such as:
+
+- open modal
+- selected section
+- current view
+- preferences panel visibility
+- temporary editing state
+
+Do not create a massive global context that becomes a substitute for the backend.
+
+Use the simplest architecture appropriate for the current application.
+
+PHASE 9 — VISUAL SYSTEM CLEANUP
+
+Preserve the TeachIt notebook identity.
+
+However, centralize design tokens.
+
+Instead of scattering raw colors throughout components, establish semantic tokens such as:
+
+--paper
+--paper-secondary
+--ink
+--ink-muted
+--border
+--accent
+--accent-muted
+
+The exact implementation should follow the existing project's styling approach.
+
+Do not turn TeachIt into a generic card-heavy SaaS dashboard.
+
+PHASE 10 — BACKEND PREPARATION
+
+Only after the frontend/domain structure is clean:
+
+Design the backend data model around:
+
+- classes
+- subjects
+- academic sessions
+- weeks
+- topics
+- lessons
+- lesson sections
+- resources
+- teaching progress
+
+Then define API contracts.
+
+Conceptually:
+
+GET /classes
+GET /classes/:id/subjects
+GET /subjects/:id/weeks
+GET /weeks/:id/topics
+GET /topics/:id
+GET /lessons/:id
+PATCH /lessons/:id
+PATCH /lessons/:id/progress
+
+Do not implement authentication, student accounts, analytics, AI, or school administration yet.
+
+FEATURES TO FREEZE
+
+Do not add:
+
+- student accounts
+- parent accounts
+- attendance
+- grades
+- school administration
+- messaging
+- collaboration
+- analytics dashboards
+- AI chatbot
+- AI lesson generation
+- AI grading
+- notifications
+- gamification
+- complex permissions
+
+These are future possibilities, not current work.
+
+AI
+
+The project may contain an AI dependency.
+
+Do not remove it blindly.
+
+But do not make AI part of this refactoring.
+
+The core application must remain useful without AI.
+
+Eventually AI should generate or modify content that conforms to TeachIt's established lesson model.
+
+DEFINITION OF DONE FOR THE REFACTOR
+
+The refactoring is successful when:
+
+A teacher can:
+
+Class
+→ Subject
+→ Week
+→ Topic
+→ Lesson
+→ Teaching Mode
+→ Mark Taught
+
+and the application clearly reflects the updated teaching progress.
+
+The user should not need to understand internal implementation details to navigate this.
+
+ENGINEERING RULES
+
+- Keep changes incremental.
+- Prefer small commits.
+- Do not rewrite working components unnecessarily.
+- Do not introduce dependencies without justification.
+- Do not create abstractions just for the sake of abstraction.
+- Do not duplicate existing functionality.
+- Remove dead code when its replacement is verified.
+- Keep TypeScript types strict and coherent.
+- Keep components reasonably sized.
+- Separate domain data from UI concerns.
+- Run the project's available checks after meaningful changes.
+- Never claim a feature works without actually verifying it.
+- If a change creates a regression, fix it before moving forward.
+
+GIT WORKFLOW
+
+Use descriptive commits.
+
+Examples:
+
+refactor: establish teachit curriculum hierarchy
+
+refactor: simplify lesson domain model
+
+refactor: separate curriculum data from UI
+
+refactor: simplify teaching navigation
+
+refactor: separate lesson UI state from domain state
+
+Do not create one enormous "refactor TeachIt" commit.
+
+IMPORTANT
+
+Do not rush to implementation.
+
+Start with PHASE 0 only.
+
+Inspect the repository and give me the audit.
+
+After the audit, stop and wait for my approval before making architectural changes.
+
+The goal is not to make the repository bigger.
+
+The goal is to make TeachIt simpler, more coherent, and closer to a real product.

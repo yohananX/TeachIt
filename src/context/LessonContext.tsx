@@ -19,10 +19,8 @@ import {
   INITIAL_SUBJECTS,
   INITIAL_TOPICS,
   INITIAL_WEEKS,
-  LegacyLesson,
-  buildTopicsFromLessons,
-  splitLegacyLesson,
 } from '../data/initialCurriculum';
+import { getLessonScope } from '../utils/curriculum';
 
 /**
  * UI navigation state only — never persisted, never domain data.
@@ -56,7 +54,7 @@ interface LessonContextType {
   toggleSectionCompleted: (sectionId: string) => void;
   updateLessonStatus: (lessonId: string, status: LessonStatus) => void;
   updatePreferences: (newPrefs: Partial<TeacherPreferences>) => void;
-  saveLesson: (lesson: Lesson) => void;
+  saveLesson: (lesson: Lesson, options?: { weekId?: string }) => void;
   resetAllData: () => void;
 }
 
@@ -78,14 +76,11 @@ const DEFAULT_PREFERENCES: TeacherPreferences = {
   fontSize: 'md',
   paperMode: 'warm-paper',
   showTimingGuidance: true,
-  autoSaveCurrentPosition: true,
-  audioFeedbackOnStep: false,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Storage reads. Shape validation is intentionally shallow here; the real
-// repository layer (Phase 4) owns schema checks and versioned migrations.
-// A bad or missing key must never take the app down on boot.
+// Storage reads. Phase 1: strict shape check — old stored lessons without
+// topicId/title fall back to seed data instead of limping along.
 // ─────────────────────────────────────────────────────────────────────────────
 function loadList<T>(key: string, fallback: T[]): T[] {
   try {
@@ -111,32 +106,51 @@ function loadRecord<T>(key: string, fallback: Record<string, T>): Record<string,
   }
 }
 
+const isNewLessonShape = (value: unknown): value is Lesson => {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    typeof v.id === 'string' &&
+    typeof v.topicId === 'string' &&
+    typeof v.title === 'string' &&
+    typeof v.durationMinutes === 'number' &&
+    Array.isArray(v.sections) &&
+    Array.isArray(v.evaluation)
+  );
+};
+
+const isNewTopicShape = (value: unknown): value is Topic => {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    typeof v.id === 'string' && typeof v.weekId === 'string' && typeof v.title === 'string'
+  );
+};
+
 const toProgressRecord = (list: TeachingProgress[]): Record<string, TeachingProgress> =>
   Object.fromEntries(list.map((progress) => [progress.lessonId, progress]));
 
-/**
- * Boot loader. Three storage states are handled:
- *  - fresh boot: seed lessons + seed progress;
- *  - pre-Phase-1 browser: lessons carry progress inline → split it out;
- *  - post-Phase-1 browser: clean lessons + a separate progress record.
- */
 function loadLessonsAndProgress(): {
   lessons: Lesson[];
   progressById: Record<string, TeachingProgress>;
 } {
-  const storedLessons = loadList<LegacyLesson>(STORAGE_KEYS.LESSONS, []);
+  const storedLessons = loadList<unknown>(STORAGE_KEYS.LESSONS, []);
   const storedProgress = loadRecord<TeachingProgress>(STORAGE_KEYS.PROGRESS, {});
-  const isFreshBoot = storedLessons.length === 0;
-
-  const split = (isFreshBoot ? INITIAL_LESSONS : storedLessons).map(splitLegacyLesson);
-  const progressById = isFreshBoot
-    ? toProgressRecord(INITIAL_PROGRESS)
-    : toProgressRecord(split.map((entry) => entry.progress));
-
+  const validStored = storedLessons.filter(isNewLessonShape);
+  // Fresh boot or pre-Phase-1 data: reseed rather than migrate field-by-field.
+  if (validStored.length === 0) {
+    return { lessons: INITIAL_LESSONS, progressById: toProgressRecord(INITIAL_PROGRESS) };
+  }
   return {
-    lessons: split.map((entry) => entry.lesson),
-    progressById: { ...progressById, ...storedProgress },
+    lessons: validStored,
+    progressById: { ...toProgressRecord(INITIAL_PROGRESS), ...storedProgress },
   };
+}
+
+function loadTopics(): Topic[] {
+  const stored = loadList<unknown>(STORAGE_KEYS.TOPICS, []);
+  const valid = stored.filter(isNewTopicShape);
+  return valid.length > 0 ? valid : INITIAL_TOPICS;
 }
 
 const LessonContext = createContext<LessonContextType | undefined>(undefined);
@@ -167,10 +181,7 @@ export const LessonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     bootData.progressById,
   );
 
-  const [topics, setTopics] = useState<Topic[]>(() => {
-    const stored = loadList<Topic>(STORAGE_KEYS.TOPICS, []);
-    return stored.length > 0 ? stored : buildTopicsFromLessons(lessons, sessions, weeks);
-  });
+  const [topics, setTopics] = useState<Topic[]>(loadTopics);
 
   const [activeLessonId, setActiveLessonId] = useState<string | null>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.ACTIVE_LESSON_ID);
@@ -190,7 +201,15 @@ export const LessonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [preferences, setPreferences] = useState<TeacherPreferences>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.PREFERENCES);
     try {
-      return saved ? JSON.parse(saved) : DEFAULT_PREFERENCES;
+      const parsed = saved ? (JSON.parse(saved) as Partial<TeacherPreferences>) : null;
+      if (!parsed) return DEFAULT_PREFERENCES;
+      // Drop pre-Phase-1 preference fields.
+      return {
+        fontSize: parsed.fontSize ?? DEFAULT_PREFERENCES.fontSize,
+        paperMode: parsed.paperMode ?? DEFAULT_PREFERENCES.paperMode,
+        showTimingGuidance:
+          parsed.showTimingGuidance ?? DEFAULT_PREFERENCES.showTimingGuidance,
+      };
     } catch {
       return DEFAULT_PREFERENCES;
     }
@@ -281,8 +300,15 @@ export const LessonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setActiveLessonId(lessonId);
     const target = lessons.find((l) => l.id === lessonId);
     if (target) {
-      setSelectedClassId(target.classId);
-      setSelectedSubjectId(target.subjectId);
+      // Derive class/subject via Topic → Week → Session → Subject.
+      const scope = getLessonScope(target.topicId, topics, weeks, sessions);
+      if (scope.subjectId) {
+        const subject = subjects.find((s) => s.id === scope.subjectId);
+        if (subject) {
+          setSelectedClassId(subject.classId);
+          setSelectedSubjectId(subject.id);
+        }
+      }
     }
     setViewMode('lesson');
   };
@@ -326,32 +352,26 @@ export const LessonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   /**
-   * Keep the hierarchy reachable: an authored lesson must belong to a topic in
-   * its week, otherwise it would never appear in the weekly plan.
+   * Keep the hierarchy reachable: an authored lesson must belong to a topic.
+   * The editor passes the target weekId when creating a new topic.
    */
-  const ensureTopicForLesson = (existing: Topic[], lesson: Lesson): Topic[] => {
-    if (existing.some((topic) => topic.lessonIds.includes(lesson.id))) return existing;
-
-    const session = sessions.find((s) => s.subjectId === lesson.subjectId);
-    const week = session
-      ? weeks.find((w) => w.sessionId === session.id && w.number === lesson.week)
-      : undefined;
-    if (!week) return existing; // outside the seeded term: attach once the week exists
-
-    const order = existing.filter((topic) => topic.weekId === week.id).length + 1;
+  const ensureTopicForLesson = (
+    existing: Topic[],
+    lesson: Lesson,
+    fallbackWeekId?: string,
+  ): Topic[] => {
+    if (existing.some((topic) => topic.id === lesson.topicId)) return existing;
+    const weekId =
+      fallbackWeekId ?? weeks[0]?.id ?? sessions[0] ? weeks[0]?.id : undefined;
+    if (!weekId) return existing;
+    const order = existing.filter((topic) => topic.weekId === weekId).length + 1;
     return [
       ...existing,
-      {
-        id: `topic-${lesson.id}`,
-        weekId: week.id,
-        title: lesson.topic,
-        order,
-        lessonIds: [lesson.id],
-      },
+      { id: lesson.topicId, weekId, title: lesson.title, order },
     ];
   };
 
-  const saveLesson = (lesson: Lesson) => {
+  const saveLesson = (lesson: Lesson, options?: { weekId?: string }) => {
     setLessons((prev) => {
       const exists = prev.some((l) => l.id === lesson.id);
       if (exists) {
@@ -373,7 +393,7 @@ export const LessonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             },
           },
     );
-    setTopics((prev) => ensureTopicForLesson(prev, lesson));
+    setTopics((prev) => ensureTopicForLesson(prev, lesson, options?.weekId));
     setActiveLessonId(lesson.id);
     setViewMode('lesson');
   };

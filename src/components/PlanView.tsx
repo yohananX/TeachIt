@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useLesson } from '../context/LessonContext';
 import { ArrowRight, Layers } from 'lucide-react';
-import { LessonStatus } from '../types/lesson';
-import { TOPIC_STATUS_LABEL, lessonsOfTopic, topicStatus } from '../utils/curriculum';
+import { LessonStatus, LessonWithProgress } from '../types/lesson';
+import { TOPIC_STATUS_LABEL, getLessonScope, lessonsOfTopic, topicStatus } from '../utils/curriculum';
 
 type StatusFilter = 'all' | 'planned' | 'in_progress' | 'taught';
 
@@ -41,9 +41,11 @@ export const PlanView: React.FC = () => {
         .sort((a, b) => a.number - b.number)
     : [];
 
-  const subjectLessons = lessons.filter(
-    (l) => l.classId === selectedClassId && l.subjectId === currentSubject?.id,
-  );
+  // Lessons belong to a subject via Topic → Week → Session.
+  const subjectLessons = lessons.filter((l) => {
+    const scope = getLessonScope(l.topicId, topics, weeks, sessions);
+    return scope.subjectId === currentSubject?.id;
+  });
 
   const matchesFilter = (status: LessonStatus) =>
     filterStatus === 'all' || status === filterStatus;
@@ -68,10 +70,7 @@ export const PlanView: React.FC = () => {
     </button>
   );
 
-  const renderLessonCard = (
-    lesson: (typeof lessons)[number],
-    showTitle: boolean,
-  ) => {
+  const renderLessonCard = (lesson: LessonWithProgress, showTitle: boolean) => {
     const currentSec = lesson.sections.find((s) => s.id === lesson.currentSectionId);
 
     return (
@@ -81,21 +80,15 @@ export const PlanView: React.FC = () => {
       >
         <div className="flex flex-wrap items-center justify-between gap-2 mb-2 text-xs font-mono text-[#786F62]">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-[#1C1917]">{lesson.subjectName}</span>
+            <span className="font-semibold text-[#1C1917]">{currentSubject?.name}</span>
             <span aria-hidden="true">·</span>
-            <span>{lesson.durationMinutes}</span>
-            {lesson.isRevision && (
-              <>
-                <span aria-hidden="true">·</span>
-                <span className="text-[#9A3412] font-semibold">Revision Topic</span>
-              </>
-            )}
+            <span>{lesson.durationMinutes} min</span>
           </div>
 
           <select
             value={lesson.status}
             onChange={(e) => updateLessonStatus(lesson.id, e.target.value as LessonStatus)}
-            aria-label={`Status for ${lesson.topic}`}
+            aria-label={`Status for ${lesson.title}`}
             className="bg-[#F2ECDD] border border-[#DDD3BF] text-[#1C1917] rounded px-2 py-0.5 text-xs font-medium cursor-pointer"
           >
             <option value="planned">Status: Planned</option>
@@ -106,14 +99,14 @@ export const PlanView: React.FC = () => {
 
         {showTitle && (
           <h4 className="text-base sm:text-lg font-serif font-medium text-[#1C1917] mb-2">
-            {lesson.topic}
+            {lesson.title}
           </h4>
         )}
 
         {lesson.status === 'in_progress' && currentSec && (
           <div className="text-xs text-[#9A3412] font-medium mb-3 flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-[#9A3412]" />
-            <span>Currently at: {currentSec.sectionNumber}. {currentSec.title}</span>
+            <span>Currently at: {currentSec.title}</span>
           </div>
         )}
 
@@ -154,7 +147,6 @@ export const PlanView: React.FC = () => {
           </p>
         </div>
 
-        {/* Secondary utility: the library is reachable, but it no longer competes */}
         <button
           onClick={() => setViewMode('library')}
           className="inline-flex items-center gap-1.5 text-xs font-medium text-[#574D42] hover:text-[#9A3412] hover:underline self-start sm:self-auto shrink-0"
@@ -235,12 +227,12 @@ export const PlanView: React.FC = () => {
               .filter((t) => t.weekId === week.id)
               .sort((a, b) => a.order - b.order);
 
-            const coveredLessonIds = new Set(topicsOfWeek.flatMap((t) => t.lessonIds));
-            const orphanLessons = subjectLessons.filter(
-              (l) => l.week === week.number && !coveredLessonIds.has(l.id),
-            );
+            const coveredTopicIds = new Set(topicsOfWeek.map((t) => t.id));
+            const orphanLessons = subjectLessons.filter((l) => {
+              const scope = getLessonScope(l.topicId, topics, weeks, sessions);
+              return scope.weekNumber === week.number && !coveredTopicIds.has(l.topicId);
+            });
 
-            // Apply the status filter to lessons, then drop topics with no matches.
             const visibleTopics = topicsOfWeek
               .map((topic) => ({
                 topic,
@@ -250,7 +242,6 @@ export const PlanView: React.FC = () => {
 
             const visibleOrphans = orphanLessons.filter((l) => matchesFilter(l.status));
 
-            // No filter: every week of the term is shown, including empty ones.
             const hasContent =
               filterStatus === 'all' || visibleTopics.length > 0 || visibleOrphans.length > 0;
 
@@ -267,7 +258,6 @@ export const PlanView: React.FC = () => {
                     : 'bg-[#FAF8F3] border-[#DDD3BF]'
                 }`}
               >
-                {/* Week title & state */}
                 <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#EAE1CD]">
                   <div className="flex items-center gap-3">
                     <div

@@ -66,14 +66,14 @@ export const PositionRibbon: React.FC<PositionRibbonProps> = ({
               aria-hidden="true"
             />
             <span className="text-xs font-mono font-semibold text-[#9A3412] shrink-0">
-              {currentSection?.sectionNumber}.
+              {currentIndex + 1}.
             </span>
             <span className="text-xs sm:text-sm font-medium text-[#1C1917] truncate group-hover:underline">
               {currentSection?.title}
             </span>
-            {currentSection?.suggestedDurationMinutes && preferences.showTimingGuidance && (
+            {currentSection?.durationMinutes != null && preferences.showTimingGuidance && (
               <span className="text-xs text-[#786F62] hidden sm:inline shrink-0">
-                · {currentSection.suggestedDurationMinutes} min
+                · {currentSection.durationMinutes} min
               </span>
             )}
           </button>
