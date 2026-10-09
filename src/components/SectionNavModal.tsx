@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { useLesson } from '../context/LessonContext';
+import { useCurriculum } from '../context/CurriculumContext';
 import { X, CheckCircle2, Circle, Clock, ArrowRight } from 'lucide-react';
 
 interface SectionNavModalProps {
@@ -15,7 +15,7 @@ export const SectionNavModal: React.FC<SectionNavModalProps> = ({
   onSelectSection,
   onSelectAnchor,
 }) => {
-  const { activeLesson, currentSectionId } = useLesson();
+  const { activeLesson, currentSectionId } = useCurriculum();
   const listRef = useRef<HTMLDivElement>(null);
 
   if (!isOpen || !activeLesson) return null;
@@ -27,14 +27,23 @@ export const SectionNavModal: React.FC<SectionNavModalProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
-      } else if (e.key === 'ArrowDown') {
+      } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
-        const next = listRef.current?.querySelector('[data-section]:not([data-completed="true"])') as HTMLElement;
-        next?.focus();
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        const prev = listRef.current?.querySelector('[data-section]:not([data-completed="true"])') as HTMLElement;
-        prev?.focus();
+        const items = Array.from(
+          listRef.current?.querySelectorAll('[data-section]:not([data-completed="true"])') ?? []
+        ) as HTMLElement[];
+        const focused = document.activeElement as HTMLElement | null;
+        const currentIndex = items.findIndex((el) => el === focused);
+        if (currentIndex === -1) {
+          // No item focused yet - focus the first
+          items[0]?.focus();
+        } else {
+          const nextIndex =
+            e.key === 'ArrowDown'
+              ? Math.min(currentIndex + 1, items.length - 1)
+              : Math.max(currentIndex - 1, 0);
+          items[nextIndex]?.focus();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);

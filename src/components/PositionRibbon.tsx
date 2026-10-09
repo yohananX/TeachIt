@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { useLesson } from '../context/LessonContext';
+import { useCurriculum } from '../context/CurriculumContext';
+import { useUI } from '../context/UIContext';
 import { ChevronLeft, ChevronRight, Menu } from 'lucide-react';
 
 interface PositionRibbonProps {
@@ -11,7 +12,8 @@ export const PositionRibbon: React.FC<PositionRibbonProps> = ({
   onOpenSectionNav,
   onScrollToCurrentSection,
 }) => {
-  const { activeLesson, currentSectionId, setCurrentSection, preferences } = useLesson();
+  const { activeLesson, currentSectionId, setCurrentSection } = useCurriculum();
+  const { preferences } = useUI();
 
   if (!activeLesson) return null;
 

@@ -1,5 +1,6 @@
 import React from 'react';
-import { useLesson } from '../context/LessonContext';
+import { useCurriculum } from '../context/CurriculumContext';
+import { useUI } from '../context/UIContext';
 import { ClassItem, SubjectItem } from '../types/lesson';
 
 interface ClassSubjectSelectorProps {
@@ -25,14 +26,8 @@ export const ClassSubjectSelector: React.FC<ClassSubjectSelectorProps> = ({
   classLabel = 'Class',
   subjectLabel = 'Subjects',
 }) => {
-  const {
-    classes,
-    subjects,
-    selectedClassId,
-    setSelectedClassId,
-    selectedSubjectId,
-    setSelectedSubjectId,
-  } = useLesson();
+  const { classes, subjects } = useCurriculum();
+  const { selectedClassId, setSelectedClassId, selectedSubjectId, setSelectedSubjectId } = useUI();
 
   const handleSelectClass = (classId: string) => {
     setSelectedClassId(classId);
@@ -124,7 +119,7 @@ export const ClassTabs: React.FC<{ selectedClassId: string; onSelect: (id: strin
   selectedClassId,
   onSelect,
 }) => {
-  const { classes } = useLesson();
+  const { classes } = useCurriculum();
   return (
     <div className="flex flex-wrap items-center gap-2 p-1.5 bg-[#F2ECDD] rounded-lg border border-[#DDD3BF]">
       {classes.map((c) => {
@@ -155,7 +150,7 @@ export const SubjectPills: React.FC<{
   onSelect: (id: string) => void;
   label?: string;
 }> = ({ classId, selectedSubjectId, onSelect, label }) => {
-  const { subjects } = useLesson();
+  const { subjects } = useCurriculum();
   const classSubjects = subjects.filter((s) => s.classId === classId);
   if (classSubjects.length === 0) return null;
 
