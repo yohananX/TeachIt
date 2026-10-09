@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useLesson } from '../context/LessonContext';
+import { useCurriculum } from '../context/CurriculumContext';
 import { Printer, Copy, Check, Maximize2, Minimize2 } from 'lucide-react';
 
 /**
@@ -9,14 +9,13 @@ import { Printer, Copy, Check, Maximize2, Minimize2 } from 'lucide-react';
  * markdown string on Lesson.
  */
 export const StudentNoteBlock: React.FC = () => {
-  const { activeLesson, preferences } = useLesson();
+  const { activeLesson } = useCurriculum();
   const [copied, setCopied] = useState(false);
   const [isPresenterMode, setIsPresenterMode] = useState(false);
 
   if (!activeLesson) return null;
 
   const noteText = activeLesson.studentNotes ?? '';
-  void preferences;
 
   const handleCopyNotes = () => {
     navigator.clipboard.writeText(noteText);

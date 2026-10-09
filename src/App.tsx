@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { LessonProvider, useLesson } from './context/LessonContext';
+import { CurriculumProvider, useCurriculum } from './context/CurriculumContext';
+import { UIProvider, useUI } from './context/UIContext';
 import { Header } from './components/Header';
 import { PositionRibbon } from './components/PositionRibbon';
 import { LessonProcedureView } from './components/LessonProcedureView';
@@ -15,19 +16,26 @@ import { getPaperThemeClass } from './utils/theme';
 
 const MainContent: React.FC = () => {
   const {
-    viewMode,
-    setViewMode,
     activeLesson,
     activeLessonId,
     currentSectionId,
     setCurrentSection,
-    preferences,
-  } = useLesson();
+    selectLesson,
+  } = useCurriculum();
 
-  const [isSectionNavOpen, setIsSectionNavOpen] = useState(false);
-  const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
-  const [isEditorOpen, setIsEditorOpen] = useState(false);
-  const [activeResource, setActiveResource] = useState<LessonResource | null>(null);
+  const {
+    viewMode,
+    setViewMode,
+    preferences,
+    isSectionNavOpen,
+    setIsSectionNavOpen,
+    isPreferencesOpen,
+    setIsPreferencesOpen,
+    isEditorOpen,
+    setIsEditorOpen,
+    activeResource,
+    setActiveResource,
+  } = useUI();
 
   // Map of anchor / section IDs to HTML elements for smooth scrolling
   const scrollTargets = useRef<Map<string, HTMLElement>>(new Map());
@@ -122,7 +130,7 @@ const MainContent: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [setIsSectionNavOpen, setIsPreferencesOpen, setIsEditorOpen, setActiveResource]);
 
   const themeStyle = getPaperThemeClass(preferences.paperMode);
 
@@ -187,8 +195,10 @@ const MainContent: React.FC = () => {
 
 export default function App() {
   return (
-    <LessonProvider>
-      <MainContent />
-    </LessonProvider>
+    <CurriculumProvider>
+      <UIProvider>
+        <MainContent />
+      </UIProvider>
+    </CurriculumProvider>
   );
 }

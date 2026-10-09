@@ -1,5 +1,6 @@
 import React from 'react';
-import { useLesson } from '../context/LessonContext';
+import { useCurriculum } from '../context/CurriculumContext';
+import { useUI } from '../context/UIContext';
 import { SlidersHorizontal } from 'lucide-react';
 
 interface HeaderProps {
@@ -7,7 +8,8 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
-  const { viewMode, setViewMode, activeLesson, preferences, updatePreferences } = useLesson();
+  const { activeLesson } = useCurriculum();
+  const { viewMode, setViewMode, preferences, updatePreferences } = useUI();
 
   const cycleFontSize = () => {
     const sequence: ('sm' | 'md' | 'lg' | 'xl')[] = ['sm', 'md', 'lg', 'xl'];

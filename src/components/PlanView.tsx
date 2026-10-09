@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useLesson } from '../context/LessonContext';
+import { useCurriculum } from '../context/CurriculumContext';
+import { useUI } from '../context/UIContext';
 import { ArrowRight, Layers } from 'lucide-react';
 import { LessonStatus, LessonWithProgress } from '../types/lesson';
 import { TOPIC_STATUS_LABEL, getLessonScope, lessonsOfTopic, topicStatus } from '../utils/curriculum';
@@ -19,14 +20,17 @@ export const PlanView: React.FC = () => {
     weeks,
     topics,
     lessons,
+    selectLesson,
+    updateLessonStatus,
+  } = useCurriculum();
+
+  const {
     selectedClassId,
     setSelectedClassId,
     selectedSubjectId,
     setSelectedSubjectId,
-    selectLesson,
-    updateLessonStatus,
     setViewMode,
-  } = useLesson();
+  } = useUI();
 
   const [filterStatus, setFilterStatus] = useState<StatusFilter>('all');
 

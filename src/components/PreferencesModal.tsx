@@ -1,5 +1,6 @@
 import React from 'react';
-import { useLesson } from '../context/LessonContext';
+import { useCurriculum } from '../context/CurriculumContext';
+import { useUI } from '../context/UIContext';
 import { FontSizeSetting, ThemePaperMode } from '../types/lesson';
 import { X, Check, RotateCcw, Type, Sun, Clock, Sparkles } from 'lucide-react';
 
@@ -9,7 +10,8 @@ interface PreferencesModalProps {
 }
 
 export const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) => {
-  const { preferences, updatePreferences, resetAllData } = useLesson();
+  const { resetAllData } = useCurriculum();
+  const { preferences, updatePreferences } = useUI();
 
   if (!isOpen) return null;
 

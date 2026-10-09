@@ -1,5 +1,6 @@
 import React from 'react';
-import { useLesson } from '../context/LessonContext';
+import { useCurriculum } from '../context/CurriculumContext';
+import { useUI } from '../context/UIContext';
 import { LessonStatus } from '../types/lesson';
 import { TOPIC_STATUS_LABEL, getLessonScope, lessonsOfTopic, topicStatus } from '../utils/curriculum';
 import { ArrowRight, Play, Compass } from 'lucide-react';
@@ -16,13 +17,16 @@ export const TodayView: React.FC = () => {
     weeks,
     topics,
     lessons,
-    selectedClassId,
-    selectedSubjectId,
     activeLesson,
     currentSectionId,
-    setViewMode,
     selectLesson,
-  } = useLesson();
+  } = useCurriculum();
+
+  const {
+    selectedClassId,
+    selectedSubjectId,
+    setViewMode,
+  } = useUI();
 
   const currentClass = classes.find((c) => c.id === selectedClassId) ?? classes[0];
   const currentSubject =

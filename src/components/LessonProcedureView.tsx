@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
-import { useLesson } from '../context/LessonContext';
+import { useCurriculum } from '../context/CurriculumContext';
+import { useUI } from '../context/UIContext';
 import { LessonResource } from '../types/lesson';
 import { getFontSizeClass } from '../utils/theme';
 import { getLessonScope } from '../utils/curriculum';
@@ -38,7 +39,6 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
     currentSectionId,
     setCurrentSection,
     toggleSectionCompleted,
-    preferences,
     topics,
     weeks,
     sessions,
@@ -47,7 +47,9 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
     updateLessonStatus,
     selectLesson,
     getTaughtLessonsForSubject,
-  } = useLesson();
+  } = useCurriculum();
+
+  const { preferences } = useUI();
 
   const fontClasses = getFontSizeClass(preferences.fontSize);
   const currentSectionRef = useRef<HTMLElement | null>(null);

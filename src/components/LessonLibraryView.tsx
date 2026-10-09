@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useLesson } from '../context/LessonContext';
+import { useCurriculum } from '../context/CurriculumContext';
+import { useUI } from '../context/UIContext';
 import { Plus, Play, Search } from 'lucide-react';
 import { getLessonScope } from '../utils/curriculum';
 import { ClassSubjectSelector } from './ClassSubjectSelector';
@@ -15,12 +16,15 @@ export const LessonLibraryView: React.FC<LessonLibraryViewProps> = ({ onOpenNewL
     weeks,
     sessions,
     lessons,
+    selectLesson,
+  } = useCurriculum();
+
+  const {
     selectedClassId,
     setSelectedClassId,
     selectedSubjectId,
     setSelectedSubjectId,
-    selectLesson,
-  } = useLesson();
+  } = useUI();
 
   const [searchQuery, setSearchQuery] = useState('');
 

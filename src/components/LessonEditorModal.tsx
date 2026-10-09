@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLesson } from '../context/LessonContext';
+import { useCurriculum } from '../context/CurriculumContext';
 import { Lesson } from '../types/lesson';
 import { X, Save } from 'lucide-react';
 import { ClassSubjectSelector } from './ClassSubjectSelector';
@@ -15,7 +15,7 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
   onClose,
   existingLesson,
 }) => {
-  const { classes, subjects, sessions, weeks, topics, saveLesson } = useLesson();
+  const { classes, subjects, sessions, weeks, topics, saveLesson } = useCurriculum();
 
   const [classId, setClassId] = useState(existingLesson ? '' : 'class-jss3');
   const [subjectId, setSubjectId] = useState(existingLesson ? '' : 'sub-jss3-dt');
