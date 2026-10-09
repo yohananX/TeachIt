@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useLesson } from '../context/LessonContext';
 import { X, CheckCircle2, Circle, Clock, ArrowRight } from 'lucide-react';
 
@@ -16,17 +16,48 @@ export const SectionNavModal: React.FC<SectionNavModalProps> = ({
   onSelectAnchor,
 }) => {
   const { activeLesson, currentSectionId } = useLesson();
+  const listRef = useRef<HTMLDivElement>(null);
 
   if (!isOpen || !activeLesson) return null;
 
   const sections = activeLesson.sections;
+
+  // Focus management & keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        const next = listRef.current?.querySelector('[data-section]:not([data-completed="true"])') as HTMLElement;
+        next?.focus();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        const prev = listRef.current?.querySelector('[data-section]:not([data-completed="true"])') as HTMLElement;
+        prev?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  // Auto-focus current section on open
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => {
+        const current = listRef.current?.querySelector('[data-current="true"]') as HTMLElement;
+        current?.focus();
+        current?.scrollIntoView({ block: 'nearest' });
+      }, 50);
+    }
+  }, [isOpen]);
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-start justify-center sm:p-6 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150"
       onClick={onClose}
     >
-      <div 
+      <div
         className="w-full sm:max-w-lg bg-[#FAF8F3] border border-[#DDD3BF] rounded-t-xl sm:rounded-lg shadow-xl overflow-hidden flex flex-col max-h-[85vh]"
         onClick={(e) => e.stopPropagation()}
       >
@@ -94,7 +125,12 @@ export const SectionNavModal: React.FC<SectionNavModalProps> = ({
         </div>
 
         {/* Section List */}
-        <div className="overflow-y-auto p-3 space-y-1 divide-y divide-[#EFE8D8]">
+        <div
+          ref={listRef}
+          className="overflow-y-auto p-3 space-y-1 divide-y divide-[#EFE8D8]"
+          role="listbox"
+          aria-label="Lesson sections"
+        >
           {sections.map((sec, idx) => {
             const isCurrent = sec.id === currentSectionId;
             const isCompleted = activeLesson.completedSectionIds.includes(sec.id);
@@ -102,11 +138,25 @@ export const SectionNavModal: React.FC<SectionNavModalProps> = ({
             return (
               <div
                 key={sec.id}
+                tabIndex={0}
+                role="option"
+                aria-selected={isCurrent}
+                aria-current={isCurrent ? 'true' : undefined}
+                data-section={sec.id}
+                data-current={isCurrent}
+                data-completed={isCompleted}
                 onClick={() => {
                   onSelectSection(sec.id);
                   onClose();
                 }}
-                className={`group flex items-center justify-between p-3 rounded cursor-pointer transition-colors ${
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSelectSection(sec.id);
+                    onClose();
+                  }
+                }}
+                className={`group flex items-center justify-between p-3 rounded cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-[#9A3412] focus:ring-offset-2 ${
                   isCurrent
                     ? 'bg-[#EFE8D8] text-[#1C1917] font-medium border-l-4 border-[#9A3412]'
                     : 'hover:bg-[#F4EEE0] text-[#443E37]'
@@ -154,7 +204,7 @@ export const SectionNavModal: React.FC<SectionNavModalProps> = ({
 
         {/* Footer hint */}
         <div className="p-3 bg-[#F2ECDD] border-t border-[#E8DFC9] text-xs text-[#574D42]">
-          <span className="text-[#8C8375]">Click any section to jump immediately</span>
+          <span className="text-[#8C8375]">Click or press Enter to jump · ↑/↓ to navigate · ESC to close</span>
         </div>
       </div>
     </div>

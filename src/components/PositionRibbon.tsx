@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useLesson } from '../context/LessonContext';
 import { ChevronLeft, ChevronRight, Menu } from 'lucide-react';
 
@@ -35,6 +35,23 @@ export const PositionRibbon: React.FC<PositionRibbonProps> = ({
     }
   };
 
+  // Keyboard shortcuts: ArrowLeft/Right for prev/next section
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept if typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        handlePrev();
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        handleNext();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentIndex, sections.length, handlePrev, handleNext]);
+
   return (
     <aside
       aria-label="Lesson position"
@@ -46,7 +63,7 @@ export const PositionRibbon: React.FC<PositionRibbonProps> = ({
           <button
             onClick={onOpenSectionNav}
             className="flex items-center justify-center gap-1.5 min-h-[30px] px-2 sm:px-2.5 py-1.5 text-xs font-medium text-[#1C1917] bg-[#E8DFC9] hover:bg-[#DDD2BA] rounded transition-colors shrink-0"
-            title="Open the lesson index"
+            title="Open the lesson index (M)"
             aria-label="Open the lesson index"
           >
             <Menu className="w-4 h-4" />
@@ -62,7 +79,7 @@ export const PositionRibbon: React.FC<PositionRibbonProps> = ({
             title="Jump back to your active section"
           >
             <span
-              className="w-2 h-2 rounded-full bg-[#9A3412] shrink-0"
+              className="w-2 h-2 rounded-full bg-[#9A3412] shrink-0 animate-pulse"
               aria-hidden="true"
             />
             <span className="text-xs font-mono font-semibold text-[#9A3412] shrink-0">
@@ -86,7 +103,7 @@ export const PositionRibbon: React.FC<PositionRibbonProps> = ({
               onClick={handlePrev}
               disabled={currentIndex <= 0}
               className="p-1.5 min-h-[30px] min-w-[30px] text-[#A89E8F] sm:text-[#574D42] hover:text-[#1C1917] disabled:opacity-30 disabled:pointer-events-none hover:bg-[#E8DFC9] rounded transition-colors"
-              title="Previous section"
+              title="Previous section (←)"
               aria-label="Previous section"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -100,7 +117,7 @@ export const PositionRibbon: React.FC<PositionRibbonProps> = ({
               onClick={handleNext}
               disabled={currentIndex >= sections.length - 1}
               className="p-1.5 min-h-[30px] min-w-[30px] text-[#A89E8F] sm:text-[#574D42] hover:text-[#1C1917] disabled:opacity-30 disabled:pointer-events-none hover:bg-[#E8DFC9] rounded transition-colors"
-              title="Next section"
+              title="Next section (→)"
               aria-label="Next section"
             >
               <ChevronRight className="w-4 h-4" />
