@@ -3,6 +3,7 @@ import { useLesson } from '../context/LessonContext';
 import { ArrowRight, Layers } from 'lucide-react';
 import { LessonStatus, LessonWithProgress } from '../types/lesson';
 import { TOPIC_STATUS_LABEL, getLessonScope, lessonsOfTopic, topicStatus } from '../utils/curriculum';
+import { ClassSubjectSelector } from './ClassSubjectSelector';
 
 type StatusFilter = 'all' | 'planned' | 'in_progress' | 'taught';
 
@@ -49,12 +50,6 @@ export const PlanView: React.FC = () => {
 
   const matchesFilter = (status: LessonStatus) =>
     filterStatus === 'all' || status === filterStatus;
-
-  const selectClass = (classId: string) => {
-    setSelectedClassId(classId);
-    const firstSubject = subjects.find((s) => s.classId === classId);
-    if (firstSubject) setSelectedSubjectId(firstSubject.id);
-  };
 
   const filterButton = (value: StatusFilter, label: string) => (
     <button
@@ -157,57 +152,17 @@ export const PlanView: React.FC = () => {
       </div>
 
       {/* Scope: class → subject */}
-      <div className="mb-5">
-        <label className="text-xs font-mono uppercase tracking-wider text-[#786F62] block mb-2">
-          Class:
-        </label>
-        <div className="flex flex-wrap items-center gap-2 p-1.5 bg-[#F2ECDD] rounded-lg border border-[#DDD3BF]">
-          {classes.map((c) => {
-            const isSelected = c.id === selectedClassId;
-            return (
-              <button
-                key={c.id}
-                onClick={() => selectClass(c.id)}
-                className={`px-4 py-2 text-xs sm:text-sm font-medium rounded transition-all cursor-pointer ${
-                  isSelected
-                    ? 'bg-[#FAF8F3] text-[#1C1917] shadow-xs font-semibold'
-                    : 'text-[#574D42] hover:text-[#1C1917]'
-                }`}
-              >
-                <span>{c.name}</span>
-                {c.arm && <span className="ml-1 text-[11px] text-[#786F62]">({c.arm})</span>}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <ClassSubjectSelector
+        showClass={true}
+        showSubject={true}
+        classLabel="Class"
+        subjectLabel="Subjects"
+      />
 
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-8">
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-          <span className="text-xs font-mono text-[#786F62] mr-1 hidden sm:inline">Subjects:</span>
-          {classSubjects.map((sub) => {
-            const isSelected = sub.id === selectedSubjectId;
-            return (
-              <button
-                key={sub.id}
-                onClick={() => setSelectedSubjectId(sub.id)}
-                className={`px-3 py-1.5 text-xs font-medium rounded border transition-colors whitespace-nowrap cursor-pointer ${
-                  isSelected
-                    ? 'bg-[#1C1917] text-white border-[#1C1917]'
-                    : 'bg-[#FAF8F3] text-[#574D42] border-[#DDD3BF] hover:bg-[#F2ECDD]'
-                }`}
-              >
-                {sub.name}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="flex items-center gap-1 p-1 bg-[#EFE8D8] rounded-md border border-[#DDD3BF] self-start sm:self-auto text-xs">
-          {filterButton('all', 'All Weeks')}
-          {filterButton('in_progress', 'Active')}
-          {filterButton('taught', 'Taught')}
-        </div>
+      <div className="flex items-center gap-1 p-1 bg-[#EFE8D8] rounded-md border border-[#DDD3BF] self-start sm:self-auto text-xs">
+        {filterButton('all', 'All Weeks')}
+        {filterButton('in_progress', 'Active')}
+        {filterButton('taught', 'Taught')}
       </div>
 
       {/* Week → Topic → Lesson */}

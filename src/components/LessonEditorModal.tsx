@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLesson } from '../context/LessonContext';
 import { Lesson } from '../types/lesson';
 import { X, Save } from 'lucide-react';
+import { ClassSubjectSelector } from './ClassSubjectSelector';
 
 interface LessonEditorModalProps {
   isOpen: boolean;
@@ -16,9 +17,9 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
 }) => {
   const { classes, subjects, sessions, weeks, topics, saveLesson } = useLesson();
 
-  const [classId, setClassId] = useState('class-jss3');
-  const [subjectId, setSubjectId] = useState('sub-jss3-dt');
-  const [weekNumber, setWeekNumber] = useState(5);
+  const [classId, setClassId] = useState(existingLesson ? '' : 'class-jss3');
+  const [subjectId, setSubjectId] = useState(existingLesson ? '' : 'sub-jss3-dt');
+  const [weekNumber, setWeekNumber] = useState(existingLesson?.durationMinutes ? 5 : 5);
   const [topicTitle, setTopicTitle] = useState('');
   const [title, setTitle] = useState(existingLesson?.title || '');
   const [duration, setDuration] = useState(existingLesson?.durationMinutes ?? 45);
@@ -41,12 +42,33 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
       'Explain key definitions clearly and write structured points on the board.',
   );
 
+  // Derive classId/subjectId from existing lesson's topicId if editing
+  useEffect(() => {
+    if (existingLesson?.topicId && topics.length > 0) {
+      const topic = topics.find((t) => t.id === existingLesson.topicId);
+      if (topic) {
+        const week = weeks.find((w) => w.id === topic.weekId);
+        if (week) {
+          const session = sessions.find((s) => s.id === week.sessionId);
+          if (session) {
+            const subject = subjects.find((s) => s.id === session.subjectId);
+            if (subject) {
+              setClassId(subject.classId);
+              setSubjectId(subject.id);
+              setWeekNumber(week.number);
+              setTopicTitle(topic.title);
+            }
+          }
+        }
+      }
+    }
+  }, [existingLesson, topics, weeks, sessions, subjects]);
+
   if (!isOpen) return null;
 
-  const currentClass = classes.find((c) => c.id === classId) || classes[0];
   const classSubjects = subjects.filter((s) => s.classId === classId);
   const currentSubject = classSubjects.find((s) => s.id === subjectId) || classSubjects[0];
-  void currentClass;
+  void currentSubject;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -157,41 +179,18 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto flex-1 text-xs sm:text-sm">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="font-mono text-xs text-[#786F62] block mb-1">Class:</label>
-              <select
-                value={classId}
-                onChange={(e) => {
-                  setClassId(e.target.value);
-                  const firstSub = subjects.find((s) => s.classId === e.target.value);
-                  if (firstSub) setSubjectId(firstSub.id);
-                }}
-                className="w-full p-2 bg-[#FAF7F0] border border-[#DDD3BF] rounded text-[#1C1917]"
-              >
-                {classes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} {c.arm ? `(${c.arm})` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <ClassSubjectSelector
+            showClass={true}
+            showSubject={true}
+            classLabel="Class"
+            subjectLabel="Subject"
+            onChange={(newClassId, newSubjectId) => {
+              setClassId(newClassId);
+              if (newSubjectId) setSubjectId(newSubjectId);
+            }}
+          />
 
-            <div>
-              <label className="font-mono text-xs text-[#786F62] block mb-1">Subject:</label>
-              <select
-                value={subjectId}
-                onChange={(e) => setSubjectId(e.target.value)}
-                className="w-full p-2 bg-[#FAF7F0] border border-[#DDD3BF] rounded text-[#1C1917]"
-              >
-                {classSubjects.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="font-mono text-xs text-[#786F62] block mb-1">Week Number:</label>
               <input
@@ -202,6 +201,17 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
                 onChange={(e) => setWeekNumber(Number(e.target.value))}
                 className="w-full p-2 bg-[#FAF7F0] border border-[#DDD3BF] rounded text-[#1C1917]"
               />
+            </div>
+            <div className="flex items-center pt-5">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={false}
+                  onChange={() => {}}
+                  className="w-4 h-4 rounded text-[#9A3412]"
+                />
+                <span className="text-xs text-[#1C1917] font-medium">(Auto-detect week from topic)</span>
+              </label>
             </div>
           </div>
 

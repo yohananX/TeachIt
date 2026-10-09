@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLesson } from '../context/LessonContext';
 import { Plus, Play, Search } from 'lucide-react';
 import { getLessonScope } from '../utils/curriculum';
+import { ClassSubjectSelector } from './ClassSubjectSelector';
 
 interface LessonLibraryViewProps {
   onOpenNewLesson: () => void;
@@ -9,7 +10,6 @@ interface LessonLibraryViewProps {
 
 export const LessonLibraryView: React.FC<LessonLibraryViewProps> = ({ onOpenNewLesson }) => {
   const {
-    classes,
     subjects,
     topics,
     weeks,
@@ -62,66 +62,22 @@ export const LessonLibraryView: React.FC<LessonLibraryViewProps> = ({ onOpenNewL
         </button>
       </div>
 
-      <div className="mb-6">
-        <label className="text-xs font-mono uppercase tracking-wider text-[#786F62] block mb-2">
-          Select Active Class:
-        </label>
-        <div className="flex flex-wrap items-center gap-2 p-1.5 bg-[#F2ECDD] rounded-lg border border-[#DDD3BF]">
-          {classes.map((c) => {
-            const isSelected = c.id === selectedClassId;
-            return (
-              <button
-                key={c.id}
-                onClick={() => {
-                  setSelectedClassId(c.id);
-                  const firstSub = subjects.find((s) => s.classId === c.id);
-                  if (firstSub) setSelectedSubjectId(firstSub.id);
-                }}
-                className={`px-4 py-2 text-xs sm:text-sm font-medium rounded transition-all cursor-pointer ${
-                  isSelected
-                    ? 'bg-[#FAF8F3] text-[#1C1917] shadow-xs font-semibold'
-                    : 'text-[#574D42] hover:text-[#1C1917]'
-                }`}
-              >
-                <span>{c.name}</span>
-                {c.arm && <span className="ml-1 text-[11px] text-[#786F62]">({c.arm})</span>}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <ClassSubjectSelector
+        showClass={true}
+        showSubject={true}
+        classLabel="Select Active Class"
+        subjectLabel="Subjects"
+      />
 
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-8">
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-          <span className="text-xs font-mono text-[#786F62] mr-1 hidden sm:inline">Subjects:</span>
-          {classSubjects.map((sub) => {
-            const isSelected = sub.id === selectedSubjectId;
-            return (
-              <button
-                key={sub.id}
-                onClick={() => setSelectedSubjectId(sub.id)}
-                className={`px-3 py-1.5 text-xs font-medium rounded border transition-colors whitespace-nowrap cursor-pointer ${
-                  isSelected
-                    ? 'bg-[#1C1917] text-white border-[#1C1917]'
-                    : 'bg-[#FAF8F3] text-[#574D42] border-[#DDD3BF] hover:bg-[#F2ECDD]'
-                }`}
-              >
-                {sub.name}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="relative min-w-[220px]">
-          <Search className="w-3.5 h-3.5 text-[#8C8375] absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Search topics or keywords..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 text-xs bg-[#FAF8F3] border border-[#DDD3BF] rounded text-[#1C1917] placeholder-[#8C8375] focus:outline-none focus:border-[#9A3412]"
-          />
-        </div>
+      <div className="relative min-w-[220px]">
+        <Search className="w-3.5 h-3.5 text-[#8C8375] absolute left-3 top-1/2 -translate-y-1/2" />
+        <input
+          type="text"
+          placeholder="Search topics or keywords..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full pl-9 pr-3 py-1.5 text-xs bg-[#FAF8F3] border border-[#DDD3BF] rounded text-[#1C1917] placeholder-[#8C8375] focus:outline-none focus:border-[#9A3412]"
+        />
       </div>
 
       <div className="space-y-4">
