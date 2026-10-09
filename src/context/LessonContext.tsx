@@ -54,6 +54,7 @@ interface LessonContextType {
   updatePreferences: (newPrefs: Partial<TeacherPreferences>) => void;
   saveLesson: (lesson: Lesson, options?: { weekId?: string }) => void;
   resetAllData: () => void;
+  getTaughtLessonsForSubject: (subjectId: string) => LessonWithProgress[];
 }
 
 const STORAGE_KEYS = {
@@ -188,6 +189,10 @@ export const LessonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setBootTick((t) => t + 1);
   };
 
+  const getTaughtLessonsForSubject = (subjectId: string) => {
+    return curriculumRepository.getTaughtLessonsForSubject(subjectId);
+  };
+
   const resetAllData = () => {
     curriculumRepository.resetAll();
     setActiveLessonId('lesson-jss3-dt-w1');
@@ -225,6 +230,7 @@ export const LessonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updatePreferences,
         saveLesson,
         resetAllData,
+        getTaughtLessonsForSubject,
       }}
     >
       {children}

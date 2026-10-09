@@ -44,6 +44,9 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
     sessions,
     subjects,
     classes,
+    updateLessonStatus,
+    selectLesson,
+    getTaughtLessonsForSubject,
   } = useLesson();
 
   const fontClasses = getFontSizeClass(preferences.fontSize);
@@ -284,7 +287,77 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
             </article>
           );
         })}
+
+        {/* Mark Lesson Taught button - appears when lesson is not yet taught */}
+        {activeLesson.status !== 'taught' && (
+          <div className="mt-8 pt-6 border-t border-[#E2D8C3] flex justify-center">
+            <button
+              onClick={() => updateLessonStatus(activeLesson.id, 'taught')}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded transition-colors"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Mark Lesson as Taught</span>
+            </button>
+          </div>
+        )}
+
+        {activeLesson.status === 'taught' && (
+          <div className="mt-8 pt-6 border-t border-[#E2D8C3] text-center">
+            <span className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-50 text-emerald-700 rounded font-medium text-sm">
+              <CheckCircle2 className="w-4 h-4" />
+              Lesson marked as taught · {new Date(activeLesson.lastVisitedAt ?? Date.now()).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </span>
+          </div>
+        )}
+
       </section>
+
+      {/* Revision Context: Previously taught lessons for this subject */}
+      {(() => {
+        const scope = getLessonScope(activeLesson.topicId, topics, weeks, sessions);
+        if (!scope.subjectId) return null;
+        const taughtLessons = getTaughtLessonsForSubject(scope.subjectId)
+          .filter((l) => l.id !== activeLesson.id)
+          .sort((a, b) => new Date(b.lastVisitedAt ?? 0).getTime() - new Date(a.lastVisitedAt ?? 0).getTime())
+          .slice(0, 5);
+        if (taughtLessons.length === 0) return null;
+        return (
+          <section className="mt-16 pt-8 border-t border-[#E2D8C3] bg-[#F5EFE3]/50 rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono uppercase tracking-widest text-[#786F62]">Revision</span>
+                <h2 className="text-xl font-serif font-medium text-[#1C1917]">Previously Taught Material</h2>
+              </div>
+              <span className="text-xs text-[#786F62]">Tap to review</span>
+            </div>
+            <div className="space-y-3">
+              {taughtLessons.map((lesson) => (
+                <button
+                  key={lesson.id}
+                  onClick={() => selectLesson(lesson.id)}
+                  className="w-full text-left p-3 bg-white/70 border border-[#E4DAC5] rounded hover:border-[#9A3412] hover:bg-[#FAF7F0] transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono text-[#9A3412] font-semibold">
+                        {(() => {
+                          const ls = getLessonScope(lesson.topicId, topics, weeks, sessions);
+                          return ls.weekNumber ? `W${ls.weekNumber}` : '';
+                        })()}
+                      </span>
+                      <span className="font-medium text-[#1C1917]">{lesson.title}</span>
+                    </div>
+                    <span className="text-xs text-[#786F62]">
+                      {new Date(lesson.lastVisitedAt ?? 0).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#574D42] mt-1 line-clamp-1">{lesson.learningObjectives[0]}</p>
+                </button>
+              ))}
+            </div>
+          </section>
+        );
+      })()}
 
       {/* Lesson-wide resources */}
       {activeLesson.resources && activeLesson.resources.length > 0 && (

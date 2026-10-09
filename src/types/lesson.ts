@@ -99,6 +99,7 @@ export type LessonWithProgress = Lesson & {
   status: LessonStatus;
   currentSectionId: string | null;
   completedSectionIds: string[];
+  lastVisitedAt?: string;
 };
 
 export type FontSizeSetting = 'sm' | 'md' | 'lg' | 'xl';

@@ -187,6 +187,7 @@ export class CurriculumRepository {
       status: progress?.status ?? 'planned',
       currentSectionId: progress?.currentSectionId ?? null,
       completedSectionIds: progress?.completedSectionIds ?? [],
+      lastVisitedAt: progress?.lastVisitedAt,
     };
   }
   getAllLessonsWithProgress(): LessonWithProgress[] {
@@ -197,6 +198,7 @@ export class CurriculumRepository {
         status: progress?.status ?? 'planned',
         currentSectionId: progress?.currentSectionId ?? null,
         completedSectionIds: progress?.completedSectionIds ?? [],
+        lastVisitedAt: progress?.lastVisitedAt,
       };
     });
   }
@@ -225,6 +227,16 @@ export class CurriculumRepository {
     const topic = this.getTopic(topicId);
     if (!topic) return 'not_prepared';
     return topicStatus(topic, this.getAllLessonsWithProgress());
+  }
+
+  /** Get all taught lessons for a topic's subject (for revision/context). */
+  getTaughtLessonsForSubject(subjectId: string): LessonWithProgress[] {
+    return this.getAllLessonsWithProgress().filter(
+      (l) => {
+        const scope = getLessonScope(l.topicId, this._topics, this._weeks, this._sessions);
+        return scope.subjectId === subjectId && l.status === 'taught';
+      },
+    );
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -282,7 +294,14 @@ export class CurriculumRepository {
     const nextCompleted = completed.includes(sectionId)
       ? completed.filter((id) => id !== sectionId)
       : [...completed, sectionId];
-    this.updateProgress(lessonId, { completedSectionIds: nextCompleted });
+
+    const lesson = this.getLesson(lessonId);
+    const allSectionsDone = lesson && nextCompleted.length >= lesson.sections.length;
+
+    this.updateProgress(lessonId, {
+      completedSectionIds: nextCompleted,
+      ...(allSectionsDone && existing?.status !== 'taught' ? { status: 'taught' as LessonStatus } : {}),
+    });
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
