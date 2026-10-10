@@ -11,7 +11,7 @@ interface PreferencesModalProps {
 
 export const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) => {
   const { resetAllData } = useCurriculum();
-  const { preferences, updatePreferences } = useUI();
+  const { preferences, updatePreferences, setSelectedClassId, setSelectedSubjectId, setViewMode, setIsPreferencesOpen, setIsEditorOpen, setIsSectionNavOpen, setActiveResource } = useUI();
 
   if (!isOpen) return null;
 
@@ -135,6 +135,14 @@ export const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onCl
               onClick={() => {
                 if (window.confirm('Reset all demo lessons and curriculum to default state?')) {
                   resetAllData();
+                  // Also reset UI state
+                  setSelectedClassId('class-jss3');
+                  setSelectedSubjectId('sub-jss3-dt');
+                  setViewMode('today');
+                  setIsPreferencesOpen(false);
+                  setIsEditorOpen(false);
+                  setIsSectionNavOpen(false);
+                  setActiveResource(null);
                   onClose();
                 }
               }}

@@ -130,18 +130,103 @@ export class CurriculumRepository {
     const validTopics = storedTopics.filter(isNewTopicShape);
     this._topics = validTopics.length > 0 ? validTopics : INITIAL_TOPICS;
 
+    // Repair orphaned lessons: detect lessons whose topicId doesn't match any loaded topic
+    // and recreate the missing topic using the lesson's data and hierarchy.
+    this.repairOrphanedLessons();
+
     this._loaded = true;
   }
 
-  /** Persist all dirty state to localStorage. */
+  /**
+   * Repair lessons that reference topics which don't exist.
+   * This can happen when topics are corrupted/missing but lessons are valid.
+   * Recreates the missing topic using the lesson's topicId and title,
+   * placing it in the correct week/session based on the topicId pattern.
+   */
+  private repairOrphanedLessons(): void {
+    const topicIds = new Set(this._topics.map((t) => t.id));
+    const orphanedLessons = this._lessons.filter((lesson) => !topicIds.has(lesson.topicId));
+
+    if (orphanedLessons.length === 0) return;
+
+    // Group orphaned lessons by their topicId to avoid duplicate topic creation
+    const topicsToCreate = new Map<string, { lesson: Lesson; scope: ReturnType<typeof getLessonScope> }>();
+
+    for (const lesson of orphanedLessons) {
+      if (topicsToCreate.has(lesson.topicId)) continue;
+
+      // Try to resolve the lesson's scope to determine the correct week
+      const scope = getLessonScope(lesson.topicId, this._topics, this._weeks, this._sessions);
+
+      // If we can resolve the scope (week exists), use that week
+      // Otherwise, try to infer from the topicId pattern (e.g., "topic-sub-jss3-dt-w1-01")
+      let targetWeekId = scope.week?.id;
+
+      if (!targetWeekId) {
+        // Parse topicId pattern: topic-{subjectId}-w{weekNumber}-{order}
+        // Example: topic-sub-jss3-dt-w1-01
+        const match = lesson.topicId.match(/^topic-(.+)-w(\d+)-\d+$/);
+        if (match) {
+          const subjectId = `sub-${match[1]}`;
+          const weekNumber = parseInt(match[2], 10);
+          const session = this._sessions.find((s) => s.subjectId === subjectId);
+          if (session) {
+            const week = this._weeks.find((w) => w.sessionId === session.id && w.number === weekNumber);
+            if (week) targetWeekId = week.id;
+          }
+        }
+      }
+
+      // Fallback: use the first week of the lesson's subject session
+      if (!targetWeekId && scope.session?.id) {
+        const week = this._weeks.find((w) => w.sessionId === scope.session?.id && w.number === 1);
+        if (week) targetWeekId = week.id;
+      }
+
+      if (targetWeekId) {
+        topicsToCreate.set(lesson.topicId, { lesson, scope });
+      }
+    }
+
+    // Create missing topics
+    for (const [topicId, { lesson }] of topicsToCreate) {
+      if (this._topics.some((t) => t.id === topicId)) continue;
+      const scope = getLessonScope(lesson.topicId, this._topics, this._weeks, this._sessions);
+      const week = scope.week ?? this._weeks.find((w) => w.id === topicsToCreate.get(topicId)?.scope.week?.id);
+      const targetWeekId = week?.id ?? this._weeks.find((w) => w.sessionId === scope.session?.id)?.id;
+
+      if (targetWeekId) {
+        const order = this._topics.filter((t) => t.weekId === targetWeekId).length + 1;
+        this._topics.push({ id: topicId, weekId: targetWeekId, title: lesson.title, order });
+      }
+    }
+
+    // If we created any topics, persist the repair
+    if (topicsToCreate.size > 0) {
+      try {
+        this.saveAll();
+      } catch {
+        // If persistence fails during repair, log but don't throw - the app can still function
+        // with the in-memory repair; next successful save will persist it.
+        console.warn('[CurriculumRepository] Failed to persist topic repair:', topicsToCreate.size, 'topics');
+      }
+    }
+  }
+
+  /** Persist all dirty state to localStorage. Throws on failure so callers can handle it. */
   saveAll(): void {
-    localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(this._classes));
-    localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(this._subjects));
-    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(this._sessions));
-    localStorage.setItem(STORAGE_KEYS.WEEKS, JSON.stringify(this._weeks));
-    localStorage.setItem(STORAGE_KEYS.TOPICS, JSON.stringify(this._topics));
-    localStorage.setItem(STORAGE_KEYS.LESSONS, JSON.stringify(this._lessons));
-    localStorage.setItem(STORAGE_KEYS.PROGRESS, JSON.stringify(this._progressById));
+    try {
+      localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(this._classes));
+      localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(this._subjects));
+      localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(this._sessions));
+      localStorage.setItem(STORAGE_KEYS.WEEKS, JSON.stringify(this._weeks));
+      localStorage.setItem(STORAGE_KEYS.TOPICS, JSON.stringify(this._topics));
+      localStorage.setItem(STORAGE_KEYS.LESSONS, JSON.stringify(this._lessons));
+      localStorage.setItem(STORAGE_KEYS.PROGRESS, JSON.stringify(this._progressById));
+    } catch (error) {
+      // Re-throw with context so callers can handle persistence failures
+      throw new Error(`Failed to persist curriculum data: ${error instanceof Error ? error.message : 'Unknown storage error'}`);
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -243,7 +328,12 @@ export class CurriculumRepository {
   // WRITE API
   // ─────────────────────────────────────────────────────────────────────────────
 
-  saveLesson(lesson: Lesson, options?: { weekId?: string }): void {
+  saveLesson(lesson: Lesson, options?: { weekId?: string; topicTitle?: string }): void {
+    const isNewLesson = !this._lessons.some((l) => l.id === lesson.id);
+    const previousLesson = isNewLesson ? null : this._lessons.find((l) => l.id === lesson.id);
+    const previousProgress = this._progressById[lesson.id];
+    const previousTopics = [...this._topics];
+
     const idx = this._lessons.findIndex((l) => l.id === lesson.id);
     if (idx >= 0) this._lessons[idx] = lesson;
     else this._lessons.push(lesson);
@@ -256,18 +346,37 @@ export class CurriculumRepository {
         completedSectionIds: [],
       };
     }
-    if (options?.weekId) this.ensureTopicForLesson(lesson, options.weekId);
-    this.saveAll();
+    if (options?.weekId) this.ensureTopicForLesson(lesson, options.weekId, options.topicTitle);
+
+    try {
+      this.saveAll();
+    } catch (error) {
+      // Rollback on persistence failure
+      if (isNewLesson) {
+        this._lessons = this._lessons.filter((l) => l.id !== lesson.id);
+      } else if (previousLesson) {
+        const idx2 = this._lessons.findIndex((l) => l.id === lesson.id);
+        if (idx2 >= 0) this._lessons[idx2] = previousLesson;
+      }
+      if (previousProgress) {
+        this._progressById[lesson.id] = previousProgress;
+      } else {
+        delete this._progressById[lesson.id];
+      }
+      this._topics = previousTopics;
+      throw error;
+    }
   }
 
-  private ensureTopicForLesson(lesson: Lesson, weekId: string): void {
+  private ensureTopicForLesson(lesson: Lesson, weekId: string, topicTitle?: string): void {
     if (this._topics.some((t) => t.id === lesson.topicId)) return;
     const order = this._topics.filter((t) => t.weekId === weekId).length + 1;
-    this._topics.push({ id: lesson.topicId, weekId, title: lesson.title, order });
-    this.saveAll();
+    this._topics.push({ id: lesson.topicId, weekId, title: topicTitle ?? lesson.title, order });
+    // Note: saveAll is called by the public method that called this
   }
 
   updateProgress(lessonId: string, patch: Partial<TeachingProgress>): void {
+    const previousProgress = this._progressById[lessonId];
     const existing = this._progressById[lessonId];
     this._progressById[lessonId] = {
       lessonId,
@@ -277,7 +386,16 @@ export class CurriculumRepository {
       lastVisitedAt: existing?.lastVisitedAt,
       ...patch,
     };
-    this.saveAll();
+    try {
+      this.saveAll();
+    } catch (error) {
+      if (previousProgress) {
+        this._progressById[lessonId] = previousProgress;
+      } else {
+        delete this._progressById[lessonId];
+      }
+      throw error;
+    }
   }
 
   updateLessonStatus(lessonId: string, status: LessonStatus): void {
@@ -289,6 +407,7 @@ export class CurriculumRepository {
   }
 
   toggleSectionCompleted(lessonId: string, sectionId: string): void {
+    const previousProgress = this._progressById[lessonId];
     const existing = this._progressById[lessonId];
     const completed = existing?.completedSectionIds ?? [];
     const nextCompleted = completed.includes(sectionId)
@@ -298,10 +417,25 @@ export class CurriculumRepository {
     const lesson = this.getLesson(lessonId);
     const allSectionsDone = lesson && nextCompleted.length >= lesson.sections.length;
 
-    this.updateProgress(lessonId, {
+    this._progressById[lessonId] = {
+      lessonId,
+      status: existing?.status ?? 'planned',
+      currentSectionId: existing?.currentSectionId ?? null,
       completedSectionIds: nextCompleted,
+      lastVisitedAt: existing?.lastVisitedAt,
       ...(allSectionsDone && existing?.status !== 'taught' ? { status: 'taught' as LessonStatus } : {}),
-    });
+    };
+
+    try {
+      this.saveAll();
+    } catch (error) {
+      if (previousProgress) {
+        this._progressById[lessonId] = previousProgress;
+      } else {
+        delete this._progressById[lessonId];
+      }
+      throw error;
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -309,6 +443,15 @@ export class CurriculumRepository {
   // ─────────────────────────────────────────────────────────────────────────────
 
   resetAll(): void {
+    const previousState = {
+      classes: [...this._classes],
+      subjects: [...this._subjects],
+      sessions: [...this._sessions],
+      weeks: [...this._weeks],
+      topics: [...this._topics],
+      lessons: [...this._lessons],
+      progressById: { ...this._progressById },
+    };
     this._classes = INITIAL_CLASSES;
     this._subjects = INITIAL_SUBJECTS;
     this._sessions = INITIAL_SESSIONS;
@@ -316,7 +459,35 @@ export class CurriculumRepository {
     this._topics = INITIAL_TOPICS;
     this._lessons = INITIAL_LESSONS;
     this._progressById = toProgressRecord(INITIAL_PROGRESS);
-    this.saveAll();
+    try {
+      this.saveAll();
+    } catch (error) {
+      this._classes = previousState.classes;
+      this._subjects = previousState.subjects;
+      this._sessions = previousState.sessions;
+      this._weeks = previousState.weeks;
+      this._topics = previousState.topics;
+      this._lessons = previousState.lessons;
+      this._progressById = previousState.progressById;
+      throw error;
+    }
+  }
+
+  /** Delete a lesson and its associated progress. */
+  deleteLesson(lessonId: string): void {
+    const previousLessons = [...this._lessons];
+    const previousProgress = this._progressById[lessonId] ? { ...this._progressById[lessonId] } : null;
+    this._lessons = this._lessons.filter((l) => l.id !== lessonId);
+    delete this._progressById[lessonId];
+    try {
+      this.saveAll();
+    } catch (error) {
+      this._lessons = previousLessons;
+      if (previousProgress) {
+        this._progressById[lessonId] = previousProgress;
+      }
+      throw error;
+    }
   }
 }
 

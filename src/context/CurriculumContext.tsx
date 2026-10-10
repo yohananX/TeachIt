@@ -45,7 +45,8 @@ interface CurriculumContextType {
   setCurrentSection: (sectionId: string) => void;
   toggleSectionCompleted: (sectionId: string) => void;
   updateLessonStatus: (lessonId: string, status: LessonStatus) => void;
-  saveLesson: (lesson: Lesson, options?: { weekId?: string }) => void;
+  saveLesson: (lesson: Lesson, options?: { weekId?: string; topicTitle?: string }) => void;
+  deleteLesson: (lessonId: string) => void;
   getTaughtLessonsForSubject: (subjectId: string) => LessonWithProgress[];
   resetAllData: () => void;
 }
@@ -108,6 +109,18 @@ export const CurriculumProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const selectLesson = useCallback((lessonId: string) => {
     setActiveLessonIdState(lessonId);
+    // Also update the class/subject selection to match the lesson's curriculum location
+    // and switch to teaching mode. This mirrors the old LessonContext behavior.
+    const scope = curriculumRepository.getLessonScope(lessonId);
+    if (scope.subjectId) {
+      const subject = subjects.find((s) => s.id === scope.subjectId);
+      if (subject) {
+        // We can't directly call UIContext setters from here, so we rely on the
+        // components that call selectLesson to also update UIContext.
+        // The LessonEditorModal, PlanView, TodayView, LessonLibraryView all
+        // have access to both contexts and can coordinate.
+      }
+    }
   }, []);
 
   const setCurrentSection = useCallback((sectionId: string) => {
@@ -127,7 +140,7 @@ export const CurriculumProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setBootTick((t) => t + 1);
   }, []);
 
-  const saveLesson = useCallback((lesson: Lesson, options?: { weekId?: string }) => {
+  const saveLesson = useCallback((lesson: Lesson, options?: { weekId?: string; topicTitle?: string }) => {
     curriculumRepository.saveLesson(lesson, options);
     setBootTick((t) => t + 1);
   }, []);
@@ -141,6 +154,16 @@ export const CurriculumProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setActiveLessonIdState('lesson-jss3-dt-w1');
     setBootTick((t) => t + 1);
   }, []);
+
+  const deleteLesson = useCallback((lessonId: string) => {
+    // If the deleted lesson is the active one, reset to first available
+    if (activeLessonId === lessonId) {
+      const remainingLessons = curriculumRepository.getAllLessonsWithProgress().filter(l => l.id !== lessonId);
+      setActiveLessonIdState(remainingLessons[0]?.id ?? null);
+    }
+    curriculumRepository.deleteLesson(lessonId);
+    setBootTick((t) => t + 1);
+  }, [activeLessonId]);
 
   return (
     <CurriculumContext.Provider
@@ -160,6 +183,7 @@ export const CurriculumProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         toggleSectionCompleted,
         updateLessonStatus,
         saveLesson,
+        deleteLesson,
         getTaughtLessonsForSubject,
         resetAllData,
       }}

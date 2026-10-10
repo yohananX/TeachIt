@@ -33,6 +33,8 @@ const MainContent: React.FC = () => {
     setIsPreferencesOpen,
     isEditorOpen,
     setIsEditorOpen,
+    editingLesson,
+    setEditingLesson,
     activeResource,
     setActiveResource,
   } = useUI();
@@ -190,7 +192,11 @@ const MainContent: React.FC = () => {
 
       <LessonEditorModal
         isOpen={isEditorOpen}
-        onClose={() => setIsEditorOpen(false)}
+        onClose={() => {
+          setIsEditorOpen(false);
+          setEditingLesson(null);
+        }}
+        existingLesson={editingLesson}
       />
     </div>
   );

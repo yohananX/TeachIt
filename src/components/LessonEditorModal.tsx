@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useCurriculum } from '../context/CurriculumContext';
+import { useUI } from '../context/UIContext';
 import { Lesson } from '../types/lesson';
 import { X, Save } from 'lucide-react';
 import { ClassSubjectSelector } from './ClassSubjectSelector';
@@ -16,6 +17,7 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
   existingLesson,
 }) => {
   const { classes, subjects, sessions, weeks, topics, saveLesson } = useCurriculum();
+  const { selectedClassId, setSelectedClassId, selectedSubjectId, setSelectedSubjectId } = useUI();
 
   const [classId, setClassId] = useState(existingLesson ? '' : 'class-jss3');
   const [subjectId, setSubjectId] = useState(existingLesson ? '' : 'sub-jss3-dt');
@@ -41,10 +43,44 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
     existingLesson?.sections[1]?.content ||
       'Explain key definitions clearly and write structured points on the board.',
   );
+  // Auto-detect week from topic title when editing
+  const [autoDetectWeek, setAutoDetectWeek] = useState(false);
 
-  // Derive classId/subjectId from existing lesson's topicId if editing
+  // Sync UIContext selection with local state when modal opens or existingLesson changes
   useEffect(() => {
-    if (existingLesson?.topicId && topics.length > 0) {
+    if (!isOpen) return;
+    if (existingLesson) {
+      // Editing: derive class/subject from lesson's topic
+      if (existingLesson.topicId && topics.length > 0) {
+        const topic = topics.find((t) => t.id === existingLesson.topicId);
+        if (topic) {
+          const week = weeks.find((w) => w.id === topic.weekId);
+          if (week) {
+            const session = sessions.find((s) => s.id === week.sessionId);
+            if (session) {
+              const subject = subjects.find((s) => s.id === session.subjectId);
+              if (subject) {
+                setSelectedClassId(subject.classId);
+                setSelectedSubjectId(subject.id);
+                setClassId(subject.classId);
+                setSubjectId(subject.id);
+                setWeekNumber(week.number);
+                setTopicTitle(topic.title);
+              }
+            }
+          }
+        }
+      }
+    } else {
+      // New lesson: use defaults or current UI selection
+      setSelectedClassId(classId || 'class-jss3');
+      setSelectedSubjectId(subjectId || 'sub-jss3-dt');
+    }
+  }, [isOpen, existingLesson, topics, weeks, sessions, subjects, classId, subjectId]);
+
+  // Derive classId/subjectId from existing lesson's topicId if editing (fallback for initial load)
+  useEffect(() => {
+    if (existingLesson?.topicId && topics.length > 0 && !classId) {
       const topic = topics.find((t) => t.id === existingLesson.topicId);
       if (topic) {
         const week = weeks.find((w) => w.id === topic.weekId);
@@ -62,13 +98,31 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
         }
       }
     }
-  }, [existingLesson, topics, weeks, sessions, subjects]);
+  }, [existingLesson, topics, weeks, sessions, subjects, classId]);
 
   if (!isOpen) return null;
 
   const classSubjects = subjects.filter((s) => s.classId === classId);
   const currentSubject = classSubjects.find((s) => s.id === subjectId) || classSubjects[0];
   void currentSubject;
+
+  // Auto-detect week from topic title
+  useEffect(() => {
+    if (autoDetectWeek && topicTitle.trim() && currentSubject) {
+      const session = sessions.find((s) => s.subjectId === currentSubject.id);
+      if (session) {
+        const matchingTopic = topics.find(
+          (t) => t.weekId === session.id && t.title.toLowerCase() === topicTitle.trim().toLowerCase()
+        );
+        if (matchingTopic) {
+          const weekForTopic = weeks.find((w) => w.id === matchingTopic.weekId);
+          if (weekForTopic) {
+            setWeekNumber(weekForTopic.number);
+          }
+        }
+      }
+    }
+  }, [autoDetectWeek, topicTitle, currentSubject, topics, weeks, sessions]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,11 +149,9 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
     const existingTopic = topics.find(
       (t) => t.weekId === week.id && t.title.toLowerCase() === topicTitleFinal.toLowerCase(),
     );
-    const topicId =
-      existingLesson?.topicId ?? existingTopic?.id ?? `topic-${Date.now().toString(36)}`;
-    const topicOrder =
-      existingTopic?.order ?? topics.filter((t) => t.weekId === week.id).length + 1;
-    void topicOrder;
+    // When editing, always preserve the existing topicId to maintain progress and relationships
+    const topicId = existingLesson?.topicId ?? existingTopic?.id ?? `topic-${Date.now().toString(36)}`;
+    const topicOrder = existingTopic?.order ?? topics.filter((t) => t.weekId === week.id).length + 1;
 
     const objectives = objectivesText
       .split('\n')
@@ -150,7 +202,9 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
 
     // If this is a brand-new topic title, the context will create the topic
     // record in the target week to keep Week → Topic → Lesson reachable.
-    saveLesson(lessonToSave, { weekId: week.id });
+    // Pass topicTitle for new topics so the topic uses the user's planning label.
+    const isNewTopic = !existingLesson && !existingTopic;
+    saveLesson(lessonToSave, { weekId: week.id, topicTitle: isNewTopic ? topicTitleFinal : undefined });
     onClose();
   };
 
@@ -186,7 +240,11 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
             subjectLabel="Subject"
             onChange={(newClassId, newSubjectId) => {
               setClassId(newClassId);
-              if (newSubjectId) setSubjectId(newSubjectId);
+              setSelectedClassId(newClassId);
+              if (newSubjectId) {
+                setSubjectId(newSubjectId);
+                setSelectedSubjectId(newSubjectId);
+              }
             }}
           />
 
@@ -200,14 +258,15 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
                 value={weekNumber}
                 onChange={(e) => setWeekNumber(Number(e.target.value))}
                 className="w-full p-2 bg-[#FAF7F0] border border-[#DDD3BF] rounded text-[#1C1917]"
+                disabled={autoDetectWeek}
               />
             </div>
             <div className="flex items-center pt-5">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={false}
-                  onChange={() => {}}
+                  checked={autoDetectWeek}
+                  onChange={(e) => setAutoDetectWeek(e.target.checked)}
                   className="w-4 h-4 rounded text-[#9A3412]"
                 />
                 <span className="text-xs text-[#1C1917] font-medium">(Auto-detect week from topic)</span>

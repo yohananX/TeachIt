@@ -49,7 +49,12 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
     getTaughtLessonsForSubject,
   } = useCurriculum();
 
-  const { preferences } = useUI();
+  const {
+    preferences,
+    setViewMode,
+    setSelectedClassId,
+    setSelectedSubjectId,
+  } = useUI();
 
   const fontClasses = getFontSizeClass(preferences.fontSize);
   const currentSectionRef = useRef<HTMLElement | null>(null);
@@ -336,7 +341,18 @@ export const LessonProcedureView: React.FC<LessonProcedureViewProps> = ({
               {taughtLessons.map((lesson) => (
                 <button
                   key={lesson.id}
-                  onClick={() => selectLesson(lesson.id)}
+                  onClick={() => {
+                    selectLesson(lesson.id);
+                    setViewMode('lesson');
+                    const scope = getLessonScope(lesson.topicId, topics, weeks, sessions);
+                    if (scope.subjectId) {
+                      const subject = subjects.find((s) => s.id === scope.subjectId);
+                      if (subject) {
+                        setSelectedSubjectId(subject.id);
+                        setSelectedClassId(subject.classId);
+                      }
+                    }
+                  }}
                   className="w-full text-left p-3 bg-white/70 border border-[#E4DAC5] rounded hover:border-[#9A3412] hover:bg-[#FAF7F0] transition-colors"
                 >
                   <div className="flex items-center justify-between">

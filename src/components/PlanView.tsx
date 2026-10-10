@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useCurriculum } from '../context/CurriculumContext';
 import { useUI } from '../context/UIContext';
-import { ArrowRight, Layers } from 'lucide-react';
+import { ArrowRight, Layers, Trash2, Edit2 } from 'lucide-react';
 import { LessonStatus, LessonWithProgress } from '../types/lesson';
 import { TOPIC_STATUS_LABEL, getLessonScope, lessonsOfTopic, topicStatus } from '../utils/curriculum';
 import { ClassSubjectSelector } from './ClassSubjectSelector';
+import { Lesson } from '../types/lesson';
 
 type StatusFilter = 'all' | 'planned' | 'in_progress' | 'taught';
 
@@ -22,6 +23,7 @@ export const PlanView: React.FC = () => {
     lessons,
     selectLesson,
     updateLessonStatus,
+    deleteLesson,
   } = useCurriculum();
 
   const {
@@ -30,6 +32,8 @@ export const PlanView: React.FC = () => {
     selectedSubjectId,
     setSelectedSubjectId,
     setViewMode,
+    setEditingLesson,
+    setIsEditorOpen,
   } = useUI();
 
   const [filterStatus, setFilterStatus] = useState<StatusFilter>('all');
@@ -68,6 +72,24 @@ export const PlanView: React.FC = () => {
       {label}
     </button>
   );
+
+  const handleOpenLesson = (lesson: LessonWithProgress) => {
+    selectLesson(lesson.id);
+    setViewMode('lesson');
+    const scope = getLessonScope(lesson.topicId, topics, weeks, sessions);
+    if (scope.subjectId) {
+      const subject = subjects.find((s) => s.id === scope.subjectId);
+      if (subject) {
+        setSelectedSubjectId(subject.id);
+        setSelectedClassId(subject.classId);
+      }
+    }
+  };
+
+  const handleEditLesson = (lesson: Lesson) => {
+    setEditingLesson(lesson);
+    setIsEditorOpen(true);
+  };
 
   const renderLessonCard = (lesson: LessonWithProgress, showTitle: boolean) => {
     const currentSec = lesson.sections.find((s) => s.id === lesson.currentSectionId);
@@ -112,13 +134,35 @@ export const PlanView: React.FC = () => {
         <div className="flex items-center justify-between pt-2 border-t border-[#EFE8D8] text-xs">
           <span className="text-[#786F62]">{lesson.sections.length} instructional sections</span>
 
-          <button
-            onClick={() => selectLesson(lesson.id)}
-            className="inline-flex items-center gap-1 px-3 py-1 bg-[#9A3412] text-white rounded font-medium hover:bg-[#852C0F] transition-colors"
-          >
-            <span>{lesson.status === 'in_progress' ? 'Continue' : 'Open Lesson'}</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => handleEditLesson(lesson)}
+              className="inline-flex items-center gap-1 px-2 py-1 bg-transparent border border-[#E2D8C3] hover:bg-[#F2ECDD] hover:border-[#9A3412] text-[#9A3412] text-xs font-medium rounded transition-colors"
+              title="Edit lesson"
+            >
+              <Edit2 className="w-3 h-3" />
+              <span>Edit</span>
+            </button>
+            <button
+              onClick={() => {
+                if (window.confirm(`Delete "${lesson.title}"? This cannot be undone.`)) {
+                  deleteLesson(lesson.id);
+                }
+              }}
+              className="inline-flex items-center gap-1 px-2 py-1 bg-transparent border border-[#E2D8C3] hover:bg-[#FEF2F2] hover:border-[#DC2626] text-[#DC2626] text-xs font-medium rounded transition-colors"
+              title="Delete lesson"
+            >
+              <Trash2 className="w-3 h-3" />
+              <span>Delete</span>
+            </button>
+            <button
+              onClick={() => handleOpenLesson(lesson)}
+              className="inline-flex items-center gap-1 px-3 py-1 bg-[#9A3412] text-white rounded font-medium hover:bg-[#852C0F] transition-colors"
+            >
+              <span>{lesson.status === 'in_progress' ? 'Continue' : 'Open Lesson'}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
     );

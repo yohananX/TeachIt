@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useCurriculum } from '../context/CurriculumContext';
 import { useUI } from '../context/UIContext';
-import { Plus, Play, Search } from 'lucide-react';
+import { Plus, Play, Search, Trash2, Edit2 } from 'lucide-react';
 import { getLessonScope } from '../utils/curriculum';
 import { ClassSubjectSelector } from './ClassSubjectSelector';
+import { Lesson } from '../types/lesson';
 
 interface LessonLibraryViewProps {
   onOpenNewLesson: () => void;
@@ -17,6 +18,7 @@ export const LessonLibraryView: React.FC<LessonLibraryViewProps> = ({ onOpenNewL
     sessions,
     lessons,
     selectLesson,
+    deleteLesson,
   } = useCurriculum();
 
   const {
@@ -24,6 +26,9 @@ export const LessonLibraryView: React.FC<LessonLibraryViewProps> = ({ onOpenNewL
     setSelectedClassId,
     selectedSubjectId,
     setSelectedSubjectId,
+    setViewMode,
+    setEditingLesson,
+    setIsEditorOpen,
   } = useUI();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -174,7 +179,33 @@ export const LessonLibraryView: React.FC<LessonLibraryViewProps> = ({ onOpenNewL
 
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => selectLesson(lesson.id)}
+                      onClick={() => {
+                        setEditingLesson(lesson);
+                        setIsEditorOpen(true);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-transparent border border-[#E2D8C3] hover:bg-[#F2ECDD] hover:border-[#9A3412] text-[#9A3412] text-xs font-medium rounded transition-colors"
+                      title="Edit lesson"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Delete "${lesson.title}"? This cannot be undone.`)) {
+                          deleteLesson(lesson.id);
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-transparent border border-[#E2D8C3] hover:bg-[#FEF2F2] hover:border-[#DC2626] text-[#DC2626] text-xs font-medium rounded transition-colors"
+                      title="Delete lesson"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        selectLesson(lesson.id);
+                        setViewMode('lesson');
+                      }}
                       className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-[#9A3412] hover:bg-[#852C0F] text-white text-xs font-semibold rounded transition-colors"
                     >
                       <Play className="w-3.5 h-3.5 fill-current" />

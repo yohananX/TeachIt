@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { TeacherPreferences } from '../types/lesson';
+import { Lesson } from '../types/lesson';
 
 /**
  * Ephemeral UI state — never persisted to localStorage (except preferences).
@@ -24,6 +25,8 @@ interface UIContextType {
   setIsPreferencesOpen: (open: boolean) => void;
   isEditorOpen: boolean;
   setIsEditorOpen: (open: boolean) => void;
+  editingLesson: Lesson | null;
+  setEditingLesson: (lesson: Lesson | null) => void;
   activeResource: any; // LessonResource | null
   setActiveResource: (resource: any) => void;
 }
@@ -71,6 +74,7 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   const [isSectionNavOpen, setIsSectionNavOpen] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
   const [activeResource, setActiveResource] = useState<any>(null);
 
   // Persist UI selections & preferences
@@ -107,6 +111,8 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         setIsPreferencesOpen,
         isEditorOpen,
         setIsEditorOpen,
+        editingLesson,
+        setEditingLesson,
         activeResource,
         setActiveResource,
       }}

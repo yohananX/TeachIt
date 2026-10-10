@@ -24,7 +24,9 @@ export const TodayView: React.FC = () => {
 
   const {
     selectedClassId,
+    setSelectedClassId,
     selectedSubjectId,
+    setSelectedSubjectId,
     setViewMode,
   } = useUI();
 
@@ -202,7 +204,18 @@ export const TodayView: React.FC = () => {
                     {topicLessons.map((lesson) => (
                       <button
                         key={lesson.id}
-                        onClick={() => selectLesson(lesson.id)}
+                        onClick={() => {
+                          selectLesson(lesson.id);
+                          setViewMode('lesson');
+                          const scope = getLessonScope(lesson.topicId, topics, weeks, sessions);
+                          if (scope.subjectId) {
+                            const subject = subjects.find((s) => s.id === scope.subjectId);
+                            if (subject) {
+                              setSelectedSubjectId(subject.id);
+                              setSelectedClassId(subject.classId);
+                            }
+                          }
+                        }}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#9A3412] hover:bg-[#852C0F] text-white text-xs font-semibold rounded transition-colors"
                       >
                         <Compass className="w-3.5 h-3.5" />
