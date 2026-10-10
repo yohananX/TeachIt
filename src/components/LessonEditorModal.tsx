@@ -100,13 +100,11 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
     }
   }, [existingLesson, topics, weeks, sessions, subjects, classId]);
 
-  if (!isOpen) return null;
-
+  // Auto-detect week from topic title (must be before early return for consistent hook order)
   const classSubjects = subjects.filter((s) => s.classId === classId);
   const currentSubject = classSubjects.find((s) => s.id === subjectId) || classSubjects[0];
   void currentSubject;
 
-  // Auto-detect week from topic title
   useEffect(() => {
     if (autoDetectWeek && topicTitle.trim() && currentSubject) {
       const session = sessions.find((s) => s.subjectId === currentSubject.id);
@@ -123,6 +121,8 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
       }
     }
   }, [autoDetectWeek, topicTitle, currentSubject, topics, weeks, sessions]);
+
+  if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
