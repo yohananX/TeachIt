@@ -138,67 +138,104 @@ export class CurriculumRepository {
   }
 
   /**
-   * Repair lessons that reference topics which don't exist.
-   * This can happen when topics are corrupted/missing but lessons are valid.
-   * Recreates the missing topic using the lesson's topicId and title,
-   * placing it in the correct week/session based on the topicId pattern.
+   * Result of attempting to repair an orphaned lesson's topic relationship.
    */
   private repairOrphanedLessons(): void {
+    type OrphanRepairResult = {
+      lessonId: string;
+      topicId: string;
+      repaired: boolean;
+      targetWeekId?: string;
+      reason?: string;
+    };
+
     const topicIds = new Set(this._topics.map((t) => t.id));
     const orphanedLessons = this._lessons.filter((lesson) => !topicIds.has(lesson.topicId));
 
     if (orphanedLessons.length === 0) return;
 
     // Group orphaned lessons by their topicId to avoid duplicate topic creation
-    const topicsToCreate = new Map<string, { lesson: Lesson; scope: ReturnType<typeof getLessonScope> }>();
+    const topicsToCreate = new Map<string, { lesson: Lesson; targetWeekId: string; reason: string }>();
+    const repairResults: OrphanRepairResult[] = [];
 
     for (const lesson of orphanedLessons) {
-      if (topicsToCreate.has(lesson.topicId)) continue;
+      if (topicsToCreate.has(lesson.topicId)) {
+        repairResults.push({
+          lessonId: lesson.id,
+          topicId: lesson.topicId,
+          repaired: true,
+          targetWeekId: topicsToCreate.get(lesson.topicId)!.targetWeekId,
+          reason: 'shared_with_repaired_topic',
+        });
+        continue;
+      }
 
-      // Try to resolve the lesson's scope to determine the correct week
+      // Try to resolve the lesson's scope via existing hierarchy (topic -> week -> session)
       const scope = getLessonScope(lesson.topicId, this._topics, this._weeks, this._sessions);
 
-      // If we can resolve the scope (week exists), use that week
-      // Otherwise, try to infer from the topicId pattern (e.g., "topic-sub-jss3-dt-w1-01")
+      // If we can resolve the scope because the topic exists in hierarchy, use that week
       let targetWeekId = scope.week?.id;
+      let reason = 'resolved_via_existing_hierarchy';
 
+      // Otherwise, try to infer from the topicId pattern: topic-{subjectId}-w{weekNumber}-{order}
+      // Example: topic-sub-jss3-dt-w1-01 where subjectId = "sub-jss3-dt"
       if (!targetWeekId) {
-        // Parse topicId pattern: topic-{subjectId}-w{weekNumber}-{order}
-        // Example: topic-sub-jss3-dt-w1-01
         const match = lesson.topicId.match(/^topic-(.+)-w(\d+)-\d+$/);
         if (match) {
-          const subjectId = `sub-${match[1]}`;
+          const subjectId = match[1]; // Already contains full subjectId (e.g., "sub-jss3-dt")
           const weekNumber = parseInt(match[2], 10);
           const session = this._sessions.find((s) => s.subjectId === subjectId);
           if (session) {
             const week = this._weeks.find((w) => w.sessionId === session.id && w.number === weekNumber);
-            if (week) targetWeekId = week.id;
+            if (week) {
+              targetWeekId = week.id;
+              reason = 'inferred_from_topicId_pattern';
+            }
           }
         }
       }
 
-      // Fallback: use the first week of the lesson's subject session
-      if (!targetWeekId && scope.session?.id) {
-        const week = this._weeks.find((w) => w.sessionId === scope.session?.id && w.number === 1);
-        if (week) targetWeekId = week.id;
-      }
+      // NOTE: We intentionally do NOT fall back to week 1 or any guessed week.
+      // If the correct week cannot be established from reliable evidence,
+      // the lesson is preserved as-is and reported for manual review.
 
       if (targetWeekId) {
-        topicsToCreate.set(lesson.topicId, { lesson, scope });
+        topicsToCreate.set(lesson.topicId, { lesson, targetWeekId, reason });
+        repairResults.push({
+          lessonId: lesson.id,
+          topicId: lesson.topicId,
+          repaired: true,
+          targetWeekId,
+          reason,
+        });
+      } else {
+        // Unresolved orphan - preserve lesson, report for review
+        repairResults.push({
+          lessonId: lesson.id,
+          topicId: lesson.topicId,
+          repaired: false,
+          reason: 'unresolvable_topicId_no_matching_session_or_week',
+        });
       }
     }
 
-    // Create missing topics
-    for (const [topicId, { lesson }] of topicsToCreate) {
+    // Create missing topics for resolved orphans
+    for (const [topicId, { lesson, targetWeekId, reason }] of topicsToCreate) {
       if (this._topics.some((t) => t.id === topicId)) continue;
-      const scope = getLessonScope(lesson.topicId, this._topics, this._weeks, this._sessions);
-      const week = scope.week ?? this._weeks.find((w) => w.id === topicsToCreate.get(topicId)?.scope.week?.id);
-      const targetWeekId = week?.id ?? this._weeks.find((w) => w.sessionId === scope.session?.id)?.id;
+      const order = this._topics.filter((t) => t.weekId === targetWeekId).length + 1;
+      this._topics.push({ id: topicId, weekId: targetWeekId, title: lesson.title, order });
+    }
 
-      if (targetWeekId) {
-        const order = this._topics.filter((t) => t.weekId === targetWeekId).length + 1;
-        this._topics.push({ id: topicId, weekId: targetWeekId, title: lesson.title, order });
-      }
+    // Log repair results for diagnostics
+    const repaired = repairResults.filter(r => r.repaired).length;
+    const unresolved = repairResults.filter(r => !r.repaired).length;
+    if (repairResults.length > 0) {
+      console.info('[CurriculumRepository] Orphan repair summary:', {
+        total: repairResults.length,
+        repaired,
+        unresolved,
+        details: repairResults,
+      });
     }
 
     // If we created any topics, persist the repair
@@ -206,8 +243,6 @@ export class CurriculumRepository {
       try {
         this.saveAll();
       } catch {
-        // If persistence fails during repair, log but don't throw - the app can still function
-        // with the in-memory repair; next successful save will persist it.
         console.warn('[CurriculumRepository] Failed to persist topic repair:', topicsToCreate.size, 'topics');
       }
     }
