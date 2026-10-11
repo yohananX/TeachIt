@@ -21,7 +21,7 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
 
   const [classId, setClassId] = useState(existingLesson ? '' : 'class-jss3');
   const [subjectId, setSubjectId] = useState(existingLesson ? '' : 'sub-jss3-dt');
-  const [weekNumber, setWeekNumber] = useState(existingLesson?.durationMinutes ? 5 : 5);
+  const [weekNumber, setWeekNumber] = useState(1);
   const [topicTitle, setTopicTitle] = useState('');
   const [title, setTitle] = useState(existingLesson?.title || '');
   const [duration, setDuration] = useState(existingLesson?.durationMinutes ?? 45);
@@ -105,6 +105,40 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
   const currentSubject = classSubjects.find((s) => s.id === subjectId) || classSubjects[0];
   void currentSubject;
 
+  // Sync form state with existingLesson when modal opens or existingLesson changes
+  useEffect(() => {
+    if (!isOpen) return;
+    if (existingLesson) {
+      // Editing: populate all fields from existing lesson
+      setTitle(existingLesson.title);
+      setDuration(existingLesson.durationMinutes);
+      setObjectivesText(existingLesson.learningObjectives.join('\n'));
+      setMaterialsText(existingLesson.materials.join('\n'));
+      setPriorKnowledge(existingLesson.priorKnowledge || '');
+      setTeacherNotes(existingLesson.teacherNotes || '');
+      setStudentNotes(existingLesson.studentNotes || '');
+      setHookContent(existingLesson.sections[0]?.content || '');
+      setCoreContent(existingLesson.sections[1]?.content || '');
+      // classId, subjectId, weekNumber, topicTitle are set by the earlier useEffect
+    } else {
+      // New lesson: reset to defaults
+      setTitle('');
+      setDuration(45);
+      setObjectivesText('Explain the core concept.\nDemonstrate working example.\nPerform student check.');
+      setMaterialsText('Whiteboard, Markers, Demonstration Kit');
+      setPriorKnowledge('');
+      setTeacherNotes('');
+      setStudentNotes('');
+      setHookContent('Start with a quick riddle or real-world problem to hook student attention.');
+      setCoreContent('Explain key definitions clearly and write structured points on the board.');
+      setTopicTitle('');
+      setWeekNumber(1);
+      setClassId('class-jss3');
+      setSubjectId('sub-jss3-dt');
+      setAutoDetectWeek(false);
+    }
+  }, [isOpen, existingLesson]);
+
   useEffect(() => {
     if (autoDetectWeek && topicTitle.trim() && currentSubject) {
       const session = sessions.find((s) => s.subjectId === currentSubject.id);
@@ -162,29 +196,41 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
       .map((s) => s.trim())
       .filter(Boolean);
 
-    const newSections = existingLesson?.sections ?? [
-      {
-        id: `sec-${Date.now().toString(36)}-1`,
-        title: 'Set Induction / Hook',
-        durationMinutes: 6,
-        content: hookContent,
-        teacherGuidance: hookContent,
-      },
-      {
-        id: `sec-${Date.now().toString(36)}-2`,
-        title: 'Teaching / Core Concept',
-        durationMinutes: 25,
-        content: coreContent,
-        teacherGuidance: coreContent,
-      },
-      {
-        id: `sec-${Date.now().toString(36)}-3`,
-        title: 'Wrap-up & Check',
-        durationMinutes: 9,
-        content: 'Recap key points, ask oral checks, preview next lesson.',
-        teacherGuidance: 'Recap, evaluate, preview next week.',
-      },
-    ];
+    // When editing, preserve existing sections but update hook/core content from form state.
+    // When creating, generate new sections with form state values.
+    const newSections = existingLesson?.sections
+      ? existingLesson.sections.map((section, index) => {
+          if (index === 0) {
+            return { ...section, content: hookContent, teacherGuidance: hookContent };
+          }
+          if (index === 1) {
+            return { ...section, content: coreContent, teacherGuidance: coreContent };
+          }
+          return section;
+        })
+      : [
+          {
+            id: `sec-${Date.now().toString(36)}-1`,
+            title: 'Set Induction / Hook',
+            durationMinutes: 6,
+            content: hookContent,
+            teacherGuidance: hookContent,
+          },
+          {
+            id: `sec-${Date.now().toString(36)}-2`,
+            title: 'Teaching / Core Concept',
+            durationMinutes: 25,
+            content: coreContent,
+            teacherGuidance: coreContent,
+          },
+          {
+            id: `sec-${Date.now().toString(36)}-3`,
+            title: 'Wrap-up & Check',
+            durationMinutes: 9,
+            content: 'Recap key points, ask oral checks, preview next lesson.',
+            teacherGuidance: 'Recap, evaluate, preview next week.',
+          },
+        ];
 
     const lessonToSave: Lesson = {
       id: existingLesson?.id || `lesson-${Date.now().toString(36)}`,
@@ -300,6 +346,7 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
           <div>
             <label className="font-mono text-xs text-[#786F62] block mb-1">Duration (minutes):</label>
             <input
+              data-testid="lesson-duration"
               type="number"
               min="1"
               max="180"
@@ -314,6 +361,7 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
               Learning Objectives (one per line):
             </label>
             <textarea
+              data-testid="lesson-objectives"
               rows={3}
               value={objectivesText}
               onChange={(e) => setObjectivesText(e.target.value)}
@@ -326,6 +374,7 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
               Materials (one per line):
             </label>
             <textarea
+              data-testid="lesson-materials"
               rows={2}
               value={materialsText}
               onChange={(e) => setMaterialsText(e.target.value)}
@@ -346,6 +395,7 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
           <div>
             <label className="font-mono text-xs text-[#786F62] block mb-1">Hook / Opening:</label>
             <textarea
+              data-testid="lesson-hook"
               rows={2}
               value={hookContent}
               onChange={(e) => setHookContent(e.target.value)}
@@ -356,6 +406,7 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
           <div>
             <label className="font-mono text-xs text-[#786F62] block mb-1">Core Teaching Content:</label>
             <textarea
+              data-testid="lesson-core"
               rows={2}
               value={coreContent}
               onChange={(e) => setCoreContent(e.target.value)}
