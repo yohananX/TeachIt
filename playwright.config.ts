@@ -10,7 +10,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  testIgnore: ['**/orphan-repair.spec.ts', '**/storage-corruption-recovery.spec.ts'],
+  testIgnore: ['**/orphan-repair.spec.ts', '**/storage-corruption-recovery.spec.ts', '**/orphan-repair-warning-ui.spec.tsx'],
   reporter: [
     ['html', { outputFolder: 'playwright-report', open: 'never' }],
     ['list']

@@ -49,6 +49,8 @@ interface CurriculumContextType {
   deleteLesson: (lessonId: string) => void;
   getTaughtLessonsForSubject: (subjectId: string) => LessonWithProgress[];
   resetAllData: () => void;
+  // Diagnostics
+  orphanRepairWarning: { message: string; dismiss: () => void } | null;
 }
 
 const STORAGE_KEYS = {
@@ -71,10 +73,16 @@ const CurriculumContext = createContext<CurriculumContextType | undefined>(undef
 // ─────────────────────────────────────────────────────────────────────────────
 export const CurriculumProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [, setBootTick] = useState(0);
+  const [orphanRepairWarning, setOrphanRepairWarning] = useState<{ message: string; dismiss: () => void } | null>(null);
 
   // Load repository once at boot
   useEffect(() => {
     curriculumRepository.loadAll();
+    const repairStatus = curriculumRepository.getOrphanRepairStatus();
+    if (repairStatus && repairStatus.attempted && repairStatus.persisted === false) {
+      const message = 'Some repaired topic relationships couldn\'t be saved to storage. They\'re available now but may need to be re-repaired after a restart if they aren\'t saved by another action.';
+      setOrphanRepairWarning({ message, dismiss: () => setOrphanRepairWarning(null) });
+    }
     setBootTick((t) => t + 1);
   }, []);
 
@@ -186,6 +194,7 @@ export const CurriculumProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         deleteLesson,
         getTaughtLessonsForSubject,
         resetAllData,
+        orphanRepairWarning,
       }}
     >
       {children}

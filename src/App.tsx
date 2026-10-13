@@ -14,6 +14,29 @@ import { LessonEditorModal } from './components/LessonEditorModal';
 import { LessonResource } from './types/lesson';
 import { applyPaperMode } from './utils/theme';
 
+// Minimal warning banner for orphan repair persistence failures
+const OrphanRepairWarningBanner: React.FC<{ message: string; onDismiss: () => void }> = ({
+  message,
+  onDismiss,
+}) => (
+  <div
+    className="fixed top-0 left-0 right-0 z-[600] bg-error-bg border-b border-error px-4 py-3 text-sm text-error shadow-lg animate-slide-down"
+    role="alert"
+    aria-live="polite"
+  >
+    <div className="max-w-7xl mx-auto flex items-start justify-between gap-4">
+      <p className="flex-1">{message}</p>
+      <button
+        onClick={onDismiss}
+        className="flex-shrink-0 px-3 py-1 text-error hover:bg-error/10 rounded focus-ring"
+        aria-label="Dismiss storage warning"
+      >
+        Dismiss
+      </button>
+    </div>
+  </div>
+);
+
 const MainContent: React.FC = () => {
   const {
     activeLesson,
@@ -21,6 +44,7 @@ const MainContent: React.FC = () => {
     currentSectionId,
     setCurrentSection,
     selectLesson,
+    orphanRepairWarning,
   } = useCurriculum();
 
   const {
@@ -141,6 +165,9 @@ const MainContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-paper text-ink transition-colors duration-200 flex flex-col">
+      {orphanRepairWarning && (
+        <OrphanRepairWarningBanner message={orphanRepairWarning.message} onDismiss={orphanRepairWarning.dismiss} />
+      )}
       {/* 3-Zone Top Bar Contract */}
       <Header onOpenSettings={() => setIsPreferencesOpen(true)} />
 

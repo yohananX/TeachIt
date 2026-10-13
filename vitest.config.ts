@@ -9,7 +9,7 @@
  */
 export default {
   test: {
-    include: ['tests/**/*.spec.ts'],
+    include: ['tests/**/*.spec.ts', 'tests/**/*.spec.tsx'],
     exclude: [
       'tests/smoke.spec.ts',
       'tests/lesson-lifecycle.spec.ts',
@@ -17,5 +17,6 @@ export default {
     ],
     environment: 'node',
     globals: true,
+    setupFiles: ['tests/setup.ts'],
   },
 };
