@@ -55,7 +55,12 @@ test.describe('Orphan Repair Regression Tests', () => {
     mockStorage.getStore().set('teachit_weeks_v1', JSON.stringify(overrides.weeks ?? INITIAL_WEEKS));
     mockStorage.getStore().set('teachit_topics_v1', JSON.stringify(overrides.topics ?? INITIAL_TOPICS));
     mockStorage.getStore().set('teachit_lessons_v1', JSON.stringify(overrides.lessons ?? INITIAL_LESSONS));
-    mockStorage.getStore().set('teachit_progress_v1', JSON.stringify(INITIAL_PROGRESS));
+    // The repository persists progress as a lessonId-keyed record (see saveAll)
+    const progressRecord = INITIAL_PROGRESS.reduce<Record<string, { lessonId: string }>>(
+      (acc, p) => ({ ...acc, [p.lessonId]: p }),
+      {},
+    );
+    mockStorage.getStore().set('teachit_progress_v1', JSON.stringify(progressRecord));
   };
 
   test.describe('Case 1: Lesson references existing topic - remains unchanged', () => {
@@ -304,6 +309,72 @@ test.describe('Orphan Repair Regression Tests', () => {
       expect(repairedProgress).toBeDefined();
       expect(repairedProgress?.status).toBe('in_progress');
       expect(repairedProgress?.completedSectionIds).toEqual(['sec-1', 'sec-2', 'sec-3a']);
+    });
+  });
+
+  test.describe('Orphan Repair Persistence Observability', () => {
+    const lessonsWithMissingRepairableTopic = () =>
+      INITIAL_LESSONS.filter(l => l.id === 'lesson-jss3-dt-w1');
+    const topicsWithoutTheRepairableOne = () =>
+      INITIAL_TOPICS.filter(t => t.id !== 'topic-sub-jss3-dt-w1-01');
+
+    test('a successful repair reports persisted: true in diagnostics and reaches storage', () => {
+      setupInitialData({ lessons: lessonsWithMissingRepairableTopic(), topics: topicsWithoutTheRepairableOne() });
+
+      repo.loadAll();
+
+      expect(repo.getOrphanRepairStatus()).toEqual({
+        attempted: true,
+        topicsCreated: 1,
+        persisted: true,
+      });
+      expect(repo.getDiagnostics()?.orphanRepair?.persisted).toBe(true);
+
+      const storedTopics = JSON.parse(mockStorage.getStore().get('teachit_topics_v1')!);
+      expect(storedTopics.some((t: { id: string }) => t.id === 'topic-sub-jss3-dt-w1-01')).toBe(true);
+    });
+
+    test('a repair persistence failure is never reported as a successful repair', () => {
+      setupInitialData({ lessons: lessonsWithMissingRepairableTopic(), topics: topicsWithoutTheRepairableOne() });
+      const topicsBefore = mockStorage.getStore().get('teachit_topics_v1');
+
+      // Every storage write fails (quota exhausted)
+      mockStorage.setItem.mockImplementation(() => {
+        throw new Error('QuotaExceededError: storage is full');
+      });
+
+      repo.loadAll();
+
+      // Diagnostics explicitly say the repair was NOT persisted
+      const repair = repo.getDiagnostics()?.orphanRepair;
+      expect(repair?.attempted).toBe(true);
+      expect(repair?.persisted).toBe(false);
+      expect(repair?.error).toContain('QuotaExceededError');
+      expect(repo.getOrphanRepairStatus()?.persisted).toBe(false);
+
+      // The repaired topic is available in memory for the current session…
+      expect(repo.getTopics().some(t => t.id === 'topic-sub-jss3-dt-w1-01')).toBe(true);
+
+      // …and the original topics payload in storage is untouched (nothing half-written)
+      expect(mockStorage.getStore().get('teachit_topics_v1')).toBe(topicsBefore);
+    });
+
+    test('an unpersisted repair is recoverable: a later successful save persists the same result', () => {
+      setupInitialData({ lessons: lessonsWithMissingRepairableTopic(), topics: topicsWithoutTheRepairableOne() });
+
+      // First attempt fails
+      mockStorage.setItem.mockImplementation(() => {
+        throw new Error('QuotaExceededError: storage is full');
+      });
+      repo.loadAll();
+      expect(repo.getOrphanRepairStatus()?.persisted).toBe(false);
+
+      // Storage heals; a normal user action persists the repaired state
+      mockStorage.setItem.mockImplementation((key: string, value: string) => mockStorage.getStore().set(key, value));
+      repo.updateProgress('lesson-jss3-dt-w1', { status: 'taught' });
+
+      const storedTopics = JSON.parse(mockStorage.getStore().get('teachit_topics_v1')!);
+      expect(storedTopics.some((t: { id: string }) => t.id === 'topic-sub-jss3-dt-w1-01')).toBe(true);
     });
   });
 });

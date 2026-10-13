@@ -25,6 +25,7 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
   const [topicTitle, setTopicTitle] = useState('');
   const [title, setTitle] = useState(existingLesson?.title || '');
   const [duration, setDuration] = useState(existingLesson?.durationMinutes ?? 45);
+  const [durationError, setDurationError] = useState<string | null>(null);
   const [objectivesText, setObjectivesText] = useState(
     existingLesson?.learningObjectives.join('\n') ||
       'Explain the core concept.\nDemonstrate working example.\nPerform student check.',
@@ -246,6 +247,16 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
       evaluation: existingLesson?.evaluation ?? [],
     };
 
+    // Client-side validation: duration must be a positive finite number.
+    // This prevents an ordinary form mistake from turning into a failed save
+    // (the repository also validates as the final safeguard).
+    const durationNum = Number(duration);
+    if (!Number.isFinite(durationNum) || durationNum <= 0) {
+      setDurationError('Lesson duration must be a positive number of minutes.');
+      return;
+    }
+    setDurationError(null);
+
     // If this is a brand-new topic title, the context will create the topic
     // record in the target week to keep Week → Topic → Lesson reachable.
     // Pass topicTitle for new topics so the topic uses the user's planning label.
@@ -351,9 +362,12 @@ export const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
               min="1"
               max="180"
               value={duration}
-              onChange={(e) => setDuration(Number(e.target.value))}
+              onChange={(e) => { setDuration(Number(e.target.value)); setDurationError(null); }}
               className="w-full p-2 bg-[#FAF7F0] border border-[#DDD3BF] rounded text-[#1C1917]"
             />
+            {durationError && (
+              <p className="mt-1 text-xs text-red-600" role="alert">{durationError}</p>
+            )}
           </div>
 
           <div>
