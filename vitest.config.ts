@@ -16,5 +16,6 @@ export default {
       'node_modules/**',
     ],
     environment: 'node',
+    globals: true,
   },
 };

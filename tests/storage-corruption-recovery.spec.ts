@@ -1,4 +1,4 @@
-import { test, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import { CurriculumRepository } from '../src/services/curriculumRepository';
 import { Lesson, Topic, Week, AcademicSession, SubjectItem, ClassItem, TeachingProgress } from '../src/types/lesson';
 import { INITIAL_CLASSES, INITIAL_SUBJECTS, INITIAL_SESSIONS, INITIAL_WEEKS, INITIAL_TOPICS, INITIAL_LESSONS, INITIAL_PROGRESS } from '../src/data/initialCurriculum';
@@ -79,7 +79,7 @@ const setupInitialData = (storage: ReturnType<typeof createMockStorage>, overrid
   storage.getStore().set(STORAGE_KEYS.PROGRESS, JSON.stringify(progressRecord));
 };
 
-test.describe('Storage Corruption Recovery Tests', () => {
+describe('Storage Corruption Recovery Tests', () => {
   let mockStorage: ReturnType<typeof createMockStorage>;
   let repo: CurriculumRepository;
   let restore: () => void;
@@ -95,7 +95,7 @@ test.describe('Storage Corruption Recovery Tests', () => {
     restore();
   });
 
-  test.describe('Basic Load Behavior', () => {
+  describe('Basic Load Behavior', () => {
     test('all valid collections load correctly from localStorage', () => {
       setupInitialData(mockStorage);
       repo.loadAll();
@@ -198,7 +198,7 @@ test.describe('Storage Corruption Recovery Tests', () => {
     });
   });
 
-  test.describe('Cross-Collection Corruption Isolation', () => {
+  describe('Cross-Collection Corruption Isolation', () => {
     test('valid lessons survive a corrupted topics collection', () => {
       const customLessons: Lesson[] = [{
         ...INITIAL_LESSONS[0],
@@ -282,7 +282,7 @@ test.describe('Storage Corruption Recovery Tests', () => {
     });
   });
 
-  test.describe('Idempotency and Duplicate Prevention', () => {
+  describe('Idempotency and Duplicate Prevention', () => {
     test('repeated recovery attempts do not create duplicate data', () => {
       // Use a topicId pattern that CAN be resolved (matches subject + week)
       const lessons: Lesson[] = [{
@@ -304,7 +304,7 @@ test.describe('Storage Corruption Recovery Tests', () => {
     });
   });
 
-  test.describe('Storage Write Failure Handling', () => {
+  describe('Storage Write Failure Handling', () => {
     test('storage write failures are handled without falsely reporting success', () => {
       setupInitialData(mockStorage);
       repo.loadAll();
@@ -359,7 +359,7 @@ test.describe('Storage Corruption Recovery Tests', () => {
     });
   });
 
-  test.describe('Data Integrity Guarantees', () => {
+  describe('Data Integrity Guarantees', () => {
     test('progress data is preserved when lessons load but progress is corrupted', () => {
       const customLessons: Lesson[] = [{
         ...INITIAL_LESSONS[0],
@@ -420,7 +420,7 @@ test.describe('Storage Corruption Recovery Tests', () => {
     });
   });
 
-  test.describe('First Launch Diagnostics (regression)', () => {
+  describe('First Launch Diagnostics (regression)', () => {
     test('a clean first launch does not make hasCorruption() return true', () => {
       // No data in storage at all — every key is missing
       repo.loadAll();
@@ -450,7 +450,7 @@ test.describe('Storage Corruption Recovery Tests', () => {
     });
   });
 
-  test.describe('Durable Payload Preservation', () => {
+  describe('Durable Payload Preservation', () => {
     test('the complete payload is preserved even when it far exceeds the diagnostic preview', () => {
       setupInitialData(mockStorage);
       const bigPayload = `{"corrupted":true,"pad":"${'x'.repeat(1000)}"}`;
@@ -561,7 +561,7 @@ test.describe('Storage Corruption Recovery Tests', () => {
     });
   });
 
-  test.describe('First-Launch Seed Persistence', () => {
+  describe('First-Launch Seed Persistence', () => {
     test('seeds are persisted during loadAll so the first edit does not write every key from scratch', () => {
       // Empty storage = first launch
       repo.loadAll();
@@ -601,7 +601,7 @@ test.describe('Storage Corruption Recovery Tests', () => {
     });
   });
 
-  test.describe('Backup Failure Handling', () => {
+  describe('Backup Failure Handling', () => {
     test('a failed backup leaves the original key untouched and refuses later overwrites', () => {
       setupInitialData(mockStorage);
       const corruptedTopics = '{"broken":true}';
@@ -631,7 +631,7 @@ test.describe('Storage Corruption Recovery Tests', () => {
     });
   });
 
-  test.describe('Corrupted Topics With Valid Lessons', () => {
+  describe('Corrupted Topics With Valid Lessons', () => {
     test('valid lessons survive, the original payload is not discarded, and unresolved relationships are exposed', () => {
       const lesson: Lesson = { ...INITIAL_LESSONS[0], id: 'lesson-a', topicId: 'topic-unknown-abc', title: 'Lesson A' };
       // Topics payload is partially invalid: the only entry that could have matched
@@ -665,7 +665,7 @@ test.describe('Storage Corruption Recovery Tests', () => {
     });
   });
 
-  test.describe('Partial Multi-Key Write Protection', () => {
+  describe('Partial Multi-Key Write Protection', () => {
     const snapshotStorage = () => new Map(DATA_KEYS.map(k => [k, mockStorage.getStore().get(k)]));
 
     test('a mid-write failure rolls back every previously written key', () => {
@@ -786,7 +786,7 @@ test.describe('Storage Corruption Recovery Tests', () => {
     });
   });
 
-  test.describe('Lesson Duration Validation', () => {
+  describe('Lesson Duration Validation', () => {
     test('valid positive durations are accepted', () => {
       const lessons: Lesson[] = [
         { ...INITIAL_LESSONS[0], id: 'dur-45', durationMinutes: 45 },
@@ -836,7 +836,7 @@ test.describe('Storage Corruption Recovery Tests', () => {
     });
   });
 
-  test.describe('Quota-Retry Pruning Observability', () => {
+  describe('Quota-Retry Pruning Observability', () => {
     // The repository only loads these 7 keys, so we test within that constraint
     // Note: PROGRESS uses loadRecordWithDiagnostics (expects object), others use loadListWithDiagnostics (expect array)
     const REPO_KEYS = [

@@ -1,4 +1,4 @@
-import { test, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import { CurriculumRepository } from '../src/services/curriculumRepository';
 import { Lesson, Topic, Week, AcademicSession, SubjectItem, ClassItem } from '../src/types/lesson';
 import { INITIAL_CLASSES, INITIAL_SUBJECTS, INITIAL_SESSIONS, INITIAL_WEEKS, INITIAL_TOPICS, INITIAL_LESSONS, INITIAL_PROGRESS } from '../src/data/initialCurriculum';
@@ -24,7 +24,7 @@ const createRepository = (storage: ReturnType<typeof createMockStorage>) => {
   return { repo, restore: () => { global.localStorage = originalLocalStorage; } };
 };
 
-test.describe('Orphan Repair Regression Tests', () => {
+describe('Orphan Repair Regression Tests', () => {
   let mockStorage: ReturnType<typeof createMockStorage>;
   let repo: CurriculumRepository;
   let restore: () => void;
@@ -63,7 +63,7 @@ test.describe('Orphan Repair Regression Tests', () => {
     mockStorage.getStore().set('teachit_progress_v1', JSON.stringify(progressRecord));
   };
 
-  test.describe('Case 1: Lesson references existing topic - remains unchanged', () => {
+  describe('Case 1: Lesson references existing topic - remains unchanged', () => {
     test('lesson with valid topicId is not modified during repair', () => {
       setupInitialData();
       repo.loadAll();
@@ -80,7 +80,7 @@ test.describe('Orphan Repair Regression Tests', () => {
     });
   });
 
-  test.describe('Case 2: Lesson references missing topic - week and subject can be established', () => {
+  describe('Case 2: Lesson references missing topic - week and subject can be established', () => {
     test('repair creates missing topic in correct week when topicId follows pattern', () => {
       // Remove the topic but keep the lesson
       const lessons = INITIAL_LESSONS.filter(l => l.id === 'lesson-jss3-dt-w1');
@@ -124,7 +124,7 @@ test.describe('Orphan Repair Regression Tests', () => {
     });
   });
 
-  test.describe('Case 3: Lesson has unrecognized/malformed topicId - week cannot be established', () => {
+  describe('Case 3: Lesson has unrecognized/malformed topicId - week cannot be established', () => {
     test('lesson with completely unknown topicId pattern is preserved but not repaired', () => {
       const lessons = [{
         ...INITIAL_LESSONS[0],
@@ -197,7 +197,7 @@ test.describe('Orphan Repair Regression Tests', () => {
     });
   });
 
-  test.describe('Case 4: TopicId resembles valid ID but conflicts with other reliable data', () => {
+  describe('Case 4: TopicId resembles valid ID but conflicts with other reliable data', () => {
     test('topicId pattern suggests week 2 but lesson belongs to week 1 topic', () => {
       // Lesson has topicId that parses to week 2, but we have a valid week 1 topic with same title
       const lessons = [{
@@ -226,7 +226,7 @@ test.describe('Orphan Repair Regression Tests', () => {
     });
   });
 
-  test.describe('Case 5: Multiple lessons share same topic - repairing one does not damage others', () => {
+  describe('Case 5: Multiple lessons share same topic - repairing one does not damage others', () => {
     test('two lessons with same missing topicId get single repaired topic', () => {
       const lessons = [
         { ...INITIAL_LESSONS[0], id: 'lesson-1' },
@@ -247,7 +247,7 @@ test.describe('Orphan Repair Regression Tests', () => {
     });
   });
 
-  test.describe('Case 6: Empty topic with no lessons is retained', () => {
+  describe('Case 6: Empty topic with no lessons is retained', () => {
     test('topic with no lessons remains after repair', () => {
       const topics = [
         ...INITIAL_TOPICS,
@@ -265,7 +265,7 @@ test.describe('Orphan Repair Regression Tests', () => {
     });
   });
 
-  test.describe('Case 7: Running repair twice does not create duplicates', () => {
+  describe('Case 7: Running repair twice does not create duplicates', () => {
     test('idempotent repair - second loadAll does not duplicate topics', () => {
       const lessons = INITIAL_LESSONS.filter(l => l.id === 'lesson-jss3-dt-w1');
       const topics = INITIAL_TOPICS.filter(t => t.id !== 'topic-sub-jss3-dt-w1-01');
@@ -283,7 +283,7 @@ test.describe('Orphan Repair Regression Tests', () => {
     });
   });
 
-  test.describe('Additional: Repair preserves lesson progress and identity', () => {
+  describe('Additional: Repair preserves lesson progress and identity', () => {
     test('lesson progress is not lost during repair', () => {
       const lessons = [{
         ...INITIAL_LESSONS[0],
@@ -312,7 +312,7 @@ test.describe('Orphan Repair Regression Tests', () => {
     });
   });
 
-  test.describe('Orphan Repair Persistence Observability', () => {
+  describe('Orphan Repair Persistence Observability', () => {
     const lessonsWithMissingRepairableTopic = () =>
       INITIAL_LESSONS.filter(l => l.id === 'lesson-jss3-dt-w1');
     const topicsWithoutTheRepairableOne = () =>
