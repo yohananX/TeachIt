@@ -13,6 +13,7 @@ import { PreferencesModal } from './components/PreferencesModal';
 import { LessonEditorModal } from './components/LessonEditorModal';
 import { LessonResource } from './types/lesson';
 import { applyPaperMode } from './utils/theme';
+import { StorageHealthBanner } from './components/StorageHealthBanner';
 
 // Minimal warning banner for orphan repair persistence failures
 const OrphanRepairWarningBanner: React.FC<{ message: string; onDismiss: () => void }> = ({
@@ -45,6 +46,8 @@ const MainContent: React.FC = () => {
     setCurrentSection,
     selectLesson,
     orphanRepairWarning,
+    storageHealthConditions,
+    dismissStorageHealthCondition,
   } = useCurriculum();
 
   const {
@@ -167,6 +170,12 @@ const MainContent: React.FC = () => {
     <div className="min-h-screen bg-paper text-ink transition-colors duration-200 flex flex-col">
       {orphanRepairWarning && (
         <OrphanRepairWarningBanner message={orphanRepairWarning.message} onDismiss={orphanRepairWarning.dismiss} />
+      )}
+      {storageHealthConditions.length > 0 && (
+        <StorageHealthBanner
+          conditions={storageHealthConditions}
+          onDismiss={dismissStorageHealthCondition}
+        />
       )}
       {/* 3-Zone Top Bar Contract */}
       <Header onOpenSettings={() => setIsPreferencesOpen(true)} />

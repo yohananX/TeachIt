@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import {
   AcademicSession,
   ClassItem,
@@ -18,7 +18,12 @@ import {
   getLessonScope,
   lessonsOfTopic,
   topicStatus,
+  CorruptionDiagnostics,
 } from '../services/curriculumRepository';
+import {
+  StorageWriteError,
+} from '../services/storageRecovery';
+import type { StorageHealthCondition } from '../components/StorageHealthBanner';
 
 /**
  * UI navigation state only — never persisted, never domain data.
@@ -51,6 +56,16 @@ interface CurriculumContextType {
   resetAllData: () => void;
   // Diagnostics
   orphanRepairWarning: { message: string; dismiss: () => void } | null;
+  // Storage health — derived from repository diagnostics
+  storageHealthConditions: StorageHealthCondition[];
+  /** Dismiss a storage health condition (does not delete diagnostics/backups) */
+  dismissStorageHealthCondition: (condition: StorageHealthCondition) => void;
+  /** Acknowledge a condition but keep it visible */
+  acknowledgeStorageHealthCondition: (condition: StorageHealthCondition) => void;
+  /** Get full diagnostics for advanced UI */
+  getDiagnostics: () => CorruptionDiagnostics | null;
+  /** Whether any storage health issue exists */
+  hasStorageHealthIssues: boolean;
 }
 
 const STORAGE_KEYS = {
@@ -75,6 +90,13 @@ export const CurriculumProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [, setBootTick] = useState(0);
   const [orphanRepairWarning, setOrphanRepairWarning] = useState<{ message: string; dismiss: () => void } | null>(null);
 
+  // Storage health: dismissed and acknowledged conditions (by type + key fingerprint)
+  const [dismissedConditions, setDismissedConditions] = useState<Set<string>>(new Set());
+  const [acknowledgedConditions, setAcknowledgedConditions] = useState<Set<string>>(new Set());
+
+  // Mutation error state - stores failed mutation errors for UI exposure, keyed by operation
+  const [mutationErrors, setMutationErrors] = useState<Map<string, string>>(new Map());
+
   // Load repository once at boot
   useEffect(() => {
     curriculumRepository.loadAll();
@@ -85,6 +107,135 @@ export const CurriculumProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
     setBootTick((t) => t + 1);
   }, []);
+
+  /** Create a stable fingerprint for a condition to track dismissal/acknowledgment */
+  const conditionFingerprint = useCallback((condition: StorageHealthCondition): string => {
+    switch (condition.type) {
+      case 'corruption':
+        return `corruption:${condition.key}:${condition.status}:${condition.backupId ?? 'no-backup'}`;
+      case 'blocked_write':
+        return `blocked_write:${condition.keys.sort().join(',')}`;
+      case 'unresolved_journal':
+        return `unresolved_journal:${condition.journalId}`;
+      case 'orphan_repair_failed':
+        return `orphan_repair_failed:${condition.topicsCreated}:${condition.error}`;
+      case 'seed_persist_failed':
+        return `seed_persist_failed:${condition.error}`;
+      case 'write_failed':
+        return `write_failed:${condition.operation}:${condition.error}`;
+      case 'preference_persist_failed':
+        return `preference_persist_failed:${condition.operation}:${condition.error}`;
+    }
+  }, []);
+
+  /** Check if a condition has been dismissed */
+  const isConditionDismissed = useCallback((condition: StorageHealthCondition): boolean => {
+    return dismissedConditions.has(conditionFingerprint(condition));
+  }, [dismissedConditions, conditionFingerprint]);
+
+  /** Check if a condition has been acknowledged */
+  const isConditionAcknowledged = useCallback((condition: StorageHealthCondition): boolean => {
+    return acknowledgedConditions.has(conditionFingerprint(condition));
+  }, [acknowledgedConditions, conditionFingerprint]);
+
+  /** Dismiss a storage health condition */
+  const dismissStorageHealthCondition = useCallback((condition: StorageHealthCondition) => {
+    setDismissedConditions((prev) => {
+      const next = new Set(prev);
+      next.add(conditionFingerprint(condition));
+      return next;
+    });
+  }, [conditionFingerprint]);
+
+  /** Acknowledge a storage health condition (keep visible) */
+  const acknowledgeStorageHealthCondition = useCallback((condition: StorageHealthCondition) => {
+    setAcknowledgedConditions((prev) => {
+      const next = new Set(prev);
+      next.add(conditionFingerprint(condition));
+      return next;
+    });
+  }, [conditionFingerprint]);
+
+  /** Get full diagnostics from repository */
+  const getDiagnostics = useCallback(() => {
+    return curriculumRepository.getDiagnostics();
+  }, []);
+
+  /** Compute storage health conditions from repository diagnostics and mutation errors */
+  const storageHealthConditions = useMemo((): StorageHealthCondition[] => {
+    const conditions: StorageHealthCondition[] = [];
+    const diagnostics = curriculumRepository.getDiagnostics();
+
+    if (!diagnostics) return conditions;
+
+    // 1. Corrupted keys with diagnostics (only malformed_json and schema_invalid are corruption)
+    for (const corrupted of diagnostics.corruptedKeys) {
+      if (corrupted.status !== 'malformed_json' && corrupted.status !== 'schema_invalid') continue;
+
+      // backupStatus in diagnostics can be 'saved' | 'failed' | 'not_needed'
+      // We only surface 'saved' or 'failed' in the banner
+      const backupStatus = corrupted.backupStatus === 'not_needed' ? 'failed' : corrupted.backupStatus;
+
+      conditions.push({
+        type: 'corruption',
+        key: corrupted.key,
+        status: corrupted.status,
+        error: corrupted.error,
+        rejectedCount: corrupted.rejectedRecordCount,
+        backupId: corrupted.backupId,
+        backupStatus,
+        backupError: corrupted.backupError,
+      });
+    }
+
+    // 2. Blocked overwrite keys
+    if (diagnostics.blockedOverwriteKeys.length > 0) {
+      conditions.push({
+        type: 'blocked_write',
+        keys: diagnostics.blockedOverwriteKeys,
+      });
+    }
+
+    // 3. Unresolved journal
+    if (diagnostics.pendingWriteRecovery &&
+        (diagnostics.pendingWriteRecovery.status === 'unresolved' ||
+         diagnostics.pendingWriteRecovery.status === 'malformed_journal')) {
+      const recovery = diagnostics.pendingWriteRecovery;
+      // journalId only exists on 'unresolved' status
+      const journalId = recovery.status === 'unresolved' ? recovery.journalId : 'malformed-journal';
+      conditions.push({
+        type: 'unresolved_journal',
+        journalId,
+        error: recovery.error ?? 'Unknown journal error',
+      });
+    }
+
+    // 4. Seed persist failure
+    if (diagnostics.seedPersist && diagnostics.seedPersist.persisted === false) {
+      conditions.push({
+        type: 'seed_persist_failed',
+        error: diagnostics.seedPersist.error ?? 'Unknown error',
+      });
+    }
+
+    // 5. Mutation errors (write failures during user actions) - one per operation
+    mutationErrors.forEach((error, operation) => {
+      conditions.push({
+        type: 'write_failed',
+        operation,
+        error,
+      });
+    });
+
+    // Note: orphan_repair_failed is intentionally excluded here because it's
+    // surfaced via the existing orphanRepairWarning banner to avoid duplicate alerts.
+
+    // Filter out dismissed conditions
+    return conditions.filter((c) => !isConditionDismissed(c));
+  }, [curriculumRepository, mutationErrors, isConditionDismissed]);
+
+  /** Whether any storage health issue exists (not dismissed) */
+  const hasStorageHealthIssues = storageHealthConditions.length > 0;
 
   // Domain data — read from repository (reactive via boot tick)
   const classes = curriculumRepository.getClasses();
@@ -103,7 +254,19 @@ export const CurriculumProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   // Persist activeLessonId
   useEffect(() => {
-    if (activeLessonId) localStorage.setItem(STORAGE_KEYS.ACTIVE_LESSON_ID, activeLessonId);
+    if (activeLessonId) {
+      try {
+        localStorage.setItem(STORAGE_KEYS.ACTIVE_LESSON_ID, activeLessonId);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        // Report as a preference persistence failure, not a curriculum data failure
+        setMutationErrors((prev) => {
+          const next = new Map(prev);
+          next.set('persistActiveLessonId', message);
+          return next;
+        });
+      }
+    }
   }, [activeLessonId]);
 
   const activeLesson =
@@ -131,47 +294,87 @@ export const CurriculumProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   }, []);
 
+  /** Helper to wrap a mutation, catch persistence errors, and expose them */
+  const withMutationErrorHandling = useCallback((
+    operation: string,
+    mutation: () => void
+  ) => {
+    try {
+      mutation();
+      // Clear the error for this specific operation on success
+      setMutationErrors((prev) => {
+        const next = new Map(prev);
+        next.delete(operation);
+        return next;
+      });
+      setBootTick((t) => t + 1);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setMutationErrors((prev) => {
+        const next = new Map(prev);
+        next.set(operation, message);
+        return next;
+      });
+      // Also increment bootTick to force UI re-sync with repository (which has rolled back)
+      setBootTick((t) => t + 1);
+      // Re-throw so callers can handle if needed
+      throw error;
+    }
+  }, []);
+
   const setCurrentSection = useCallback((sectionId: string) => {
     if (!activeLessonId) return;
-    curriculumRepository.setCurrentSection(activeLessonId, sectionId);
-    setBootTick((t) => t + 1);
-  }, [activeLessonId]);
+    withMutationErrorHandling('setCurrentSection', () => {
+      curriculumRepository.setCurrentSection(activeLessonId, sectionId);
+    });
+  }, [activeLessonId, withMutationErrorHandling]);
 
   const toggleSectionCompleted = useCallback((sectionId: string) => {
     if (!activeLessonId) return;
-    curriculumRepository.toggleSectionCompleted(activeLessonId, sectionId);
-    setBootTick((t) => t + 1);
-  }, [activeLessonId]);
+    withMutationErrorHandling('toggleSectionCompleted', () => {
+      curriculumRepository.toggleSectionCompleted(activeLessonId, sectionId);
+    });
+  }, [activeLessonId, withMutationErrorHandling]);
 
   const updateLessonStatus = useCallback((lessonId: string, status: LessonStatus) => {
-    curriculumRepository.updateLessonStatus(lessonId, status);
-    setBootTick((t) => t + 1);
-  }, []);
+    withMutationErrorHandling('updateLessonStatus', () => {
+      curriculumRepository.updateLessonStatus(lessonId, status);
+    });
+  }, [withMutationErrorHandling]);
 
   const saveLesson = useCallback((lesson: Lesson, options?: { weekId?: string; topicTitle?: string }) => {
-    curriculumRepository.saveLesson(lesson, options);
-    setBootTick((t) => t + 1);
-  }, []);
+    withMutationErrorHandling('saveLesson', () => {
+      curriculumRepository.saveLesson(lesson, options);
+    });
+  }, [withMutationErrorHandling]);
 
   const getTaughtLessonsForSubject = useCallback((subjectId: string) => {
     return curriculumRepository.getTaughtLessonsForSubject(subjectId);
   }, []);
 
   const resetAllData = useCallback(() => {
-    curriculumRepository.resetAll();
-    setActiveLessonIdState('lesson-jss3-dt-w1');
-    setBootTick((t) => t + 1);
-  }, []);
+    withMutationErrorHandling('resetAllData', () => {
+      try {
+        curriculumRepository.resetAll();
+      } finally {
+        // Always reset active lesson after reset attempt.
+        // Repository has already rolled back on failure, so we read the current state.
+        const firstLesson = curriculumRepository.getAllLessonsWithProgress()[0];
+        setActiveLessonIdState(firstLesson?.id ?? 'lesson-jss3-dt-w1');
+      }
+    });
+  }, [withMutationErrorHandling]);
 
   const deleteLesson = useCallback((lessonId: string) => {
-    // If the deleted lesson is the active one, reset to first available
-    if (activeLessonId === lessonId) {
-      const remainingLessons = curriculumRepository.getAllLessonsWithProgress().filter(l => l.id !== lessonId);
-      setActiveLessonIdState(remainingLessons[0]?.id ?? null);
-    }
-    curriculumRepository.deleteLesson(lessonId);
-    setBootTick((t) => t + 1);
-  }, [activeLessonId]);
+    withMutationErrorHandling('deleteLesson', () => {
+      // If the deleted lesson is the active one, reset to first available
+      if (activeLessonId === lessonId) {
+        const remainingLessons = curriculumRepository.getAllLessonsWithProgress().filter(l => l.id !== lessonId);
+        setActiveLessonIdState(remainingLessons[0]?.id ?? null);
+      }
+      curriculumRepository.deleteLesson(lessonId);
+    });
+  }, [activeLessonId, withMutationErrorHandling]);
 
   return (
     <CurriculumContext.Provider
@@ -195,6 +398,11 @@ export const CurriculumProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         getTaughtLessonsForSubject,
         resetAllData,
         orphanRepairWarning,
+        storageHealthConditions,
+        dismissStorageHealthCondition,
+        acknowledgeStorageHealthCondition,
+        getDiagnostics,
+        hasStorageHealthIssues,
       }}
     >
       {children}
